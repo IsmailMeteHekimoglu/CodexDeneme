@@ -21,7 +21,7 @@ import java.util.Map;
 public class LlmBahisOneriServisi {
     private static final String OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
     private static final String ONERI_PROMPT_DOSYASI = "promptlar/bahis-oneri.prompt.md";
-    private static final int EN_FAZLA_ADAY = 8;
+    private static final int EN_FAZLA_ADAY = 25;
 
     private final JsonServisi jsonServisi = new JsonServisi();
     private final AyarServisi ayarServisi = new AyarServisi();
@@ -99,6 +99,7 @@ public class LlmBahisOneriServisi {
                 + "En az su alanlar bulunmali: "
                 + "{\"onerilebilir\":true,\"macId\":0,\"bahisTuru\":\"MAC_SONUCU_1\",\"secim\":\"Mac Sonucu 1\","
                 + "\"riskPuani\":30,\"guvenPuani\":70,\"gerekce\":\"kisa gerekce\"}. "
+                + "Tanimsiz marketlerde bahisTuru DIGER olabilir; bu durumda secim alanini aday listesinde geldigi gibi kullan. "
                 + "Oneri yapilmayacaksa {\"onerilebilir\":false,\"gerekce\":\"neden\"} dondur.";
     }
 

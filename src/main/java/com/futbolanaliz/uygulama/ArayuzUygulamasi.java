@@ -159,7 +159,7 @@ public class ArayuzUygulamasi extends JFrame {
 
         macListesi.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         macListesi.setCellRenderer(new MacKartRenderer());
-        macListesi.setFixedCellHeight(82);
+        macListesi.setFixedCellHeight(86);
         JScrollPane listeScroll = new JScrollPane(macListesi);
         listeScroll.setBorder(null);
 
@@ -391,7 +391,9 @@ public class ArayuzUygulamasi extends JFrame {
         }
 
         seciliMacEtiketi.setText(seciliMac.getKarsilasmaAdi());
-        ligSaatEtiketi.setText(seciliMac.getLig() + " | " + seciliMac.getSaat().format(SAAT_FORMATI));
+        ligSaatEtiketi.setText(seciliMac.getLig() + " | " + seciliMac.getSaat().format(SAAT_FORMATI)
+                + " | " + seciliMac.getDurumMetni()
+                + " | Skor: " + seciliMac.getSkorMetni());
         analizButonu.setEnabled(true);
 
         for (Oran oran : seciliMac.getOranlar()) {
@@ -561,26 +563,26 @@ public class ArayuzUygulamasi extends JFrame {
         kart.setOpaque(true);
         kart.setBackground(new Color(248, 252, 250));
         kart.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(203, 226, 216), 2),
-                BorderFactory.createEmptyBorder(12, 14, 12, 14)
+                BorderFactory.createLineBorder(new Color(203, 226, 216), 1),
+                BorderFactory.createEmptyBorder(7, 10, 7, 10)
         ));
-        kart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
-        kart.setPreferredSize(new Dimension(420, 66));
+        kart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
+        kart.setPreferredSize(new Dimension(420, 46));
 
-        JLabel ad = new JLabel(oran.getBahisTuru().getGorunenAd());
+        JLabel ad = new JLabel(oran.getGorunenAd());
         ad.setOpaque(true);
         ad.setBackground(new Color(248, 252, 250));
         ad.setForeground(new Color(23, 44, 38));
-        ad.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        ad.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
         JLabel deger = new JLabel(oran.formatliDeger());
         deger.setOpaque(true);
         deger.setBackground(YESIL);
         deger.setForeground(Color.WHITE);
         deger.setHorizontalAlignment(SwingConstants.CENTER);
-        deger.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        deger.setBorder(BorderFactory.createEmptyBorder(6, 18, 6, 18));
-        deger.setPreferredSize(new Dimension(110, 44));
+        deger.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        deger.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+        deger.setPreferredSize(new Dimension(82, 32));
 
         kart.add(ad, BorderLayout.CENTER);
         kart.add(deger, BorderLayout.EAST);
@@ -693,6 +695,7 @@ public class ArayuzUygulamasi extends JFrame {
         private final JLabel saat = new JLabel();
         private final JLabel takimlar = new JLabel();
         private final JLabel lig = new JLabel();
+        private final JLabel skor = new JLabel();
 
         private MacKartRenderer() {
             super(new BorderLayout(10, 4));
@@ -701,10 +704,12 @@ public class ArayuzUygulamasi extends JFrame {
             saat.setFont(new Font("Segoe UI", Font.BOLD, 14));
             takimlar.setFont(new Font("Segoe UI", Font.BOLD, 14));
             lig.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            skor.setFont(new Font("Segoe UI", Font.BOLD, 12));
             JPanel metinler = new JPanel(new GridLayout(0, 1, 0, 3));
             metinler.setOpaque(false);
             metinler.add(takimlar);
             metinler.add(lig);
+            metinler.add(skor);
             add(saat, BorderLayout.WEST);
             add(metinler, BorderLayout.CENTER);
         }
@@ -713,11 +718,13 @@ public class ArayuzUygulamasi extends JFrame {
         public Component getListCellRendererComponent(JList<? extends Mac> list, Mac mac, int index, boolean selected, boolean cellHasFocus) {
             saat.setText(mac.getSaat().format(SAAT_FORMATI));
             takimlar.setText(mac.getKarsilasmaAdi());
-            lig.setText(mac.getLig());
+            lig.setText(mac.getLig() + " | " + mac.getDurumMetni());
+            skor.setText((mac.devamEdiyorMu() ? "CANLI " : "") + "Skor: " + mac.getSkorMetni());
             setBackground(selected ? new Color(218, 245, 231) : Color.WHITE);
             saat.setForeground(selected ? YESIL : new Color(42, 61, 55));
             takimlar.setForeground(new Color(28, 42, 38));
             lig.setForeground(new Color(91, 109, 103));
+            skor.setForeground(mac.devamEdiyorMu() ? KIRMIZI : new Color(42, 61, 55));
             return this;
         }
     }

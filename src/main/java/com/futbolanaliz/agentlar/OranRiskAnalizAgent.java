@@ -36,13 +36,12 @@ public class OranRiskAnalizAgent implements Agent {
         analizler.clear();
 
         for (Mac mac : maclar) {
-            Oran onerilenOran = enGuvenliOranBul(mac);
-            if (onerilenOran != null) {
-                analizler.add(analizOlustur(mac, onerilenOran));
+            for (Oran oran : mac.getOranlar()) {
+                analizler.add(analizOlustur(mac, oran));
             }
         }
 
-        return AgentSonucu.basarili(ad(), analizler.size() + " maç için oran risk analizi üretildi.");
+        return AgentSonucu.basarili(ad(), analizler.size() + " bahis secenegi icin oran risk analizi uretildi.");
     }
 
     public List<OranRiskAnalizi> getAnalizler() {
@@ -63,31 +62,26 @@ public class OranRiskAnalizAgent implements Agent {
             risk -= 6;
         }
 
+        if (oran.getBahisTuru() == BahisTuru.DIGER) {
+            risk += digerMarketRiskEki(oran);
+        }
+
         if (kadroDurumuAnalizi != null) {
             risk += Math.max(kadroDurumuAnalizi.getEvSahibiRiskPuani(), kadroDurumuAnalizi.getDeplasmanRiskPuani()) / 10;
         }
 
         risk = Math.max(5, Math.min(95, risk));
         int guven = 100 - risk;
-        String gerekce = "Risk; oran seviyesi, yorum tahmini, takım gücü ve kadro riski birlikte değerlendirilerek hesaplandı.";
-        return new OranRiskAnalizi(mac, oran.getBahisTuru(), oran.getBahisTuru().getGorunenAd(), oran.getDeger(), risk, guven, gerekce);
-    }
-
-    private Oran enGuvenliOranBul(Mac mac) {
-        Oran enGuvenli = null;
-
-        for (Oran oran : mac.getOranlar()) {
-            if (enGuvenli == null || temelRiskPuani(oran.getDeger()) < temelRiskPuani(enGuvenli.getDeger())) {
-                enGuvenli = oran;
-            }
-        }
-
-        return enGuvenli;
+        String gerekce = "Risk; oran seviyesi, market tipi, yorum tahmini, takim gucu ve kadro riski birlikte degerlendirilerek hesaplandi.";
+        return new OranRiskAnalizi(mac, oran.getBahisTuru(), oran.getGorunenAd(), oran.getDeger(), risk, guven, gerekce);
     }
 
     private int temelRiskPuani(BigDecimal oran) {
+        if (oran.compareTo(new BigDecimal("1.05")) <= 0) {
+            return 46;
+        }
         if (oran.compareTo(new BigDecimal("1.35")) <= 0) {
-            return 24;
+            return 30;
         }
         if (oran.compareTo(new BigDecimal("1.80")) <= 0) {
             return 36;
@@ -100,6 +94,20 @@ public class OranRiskAnalizAgent implements Agent {
         }
 
         return 78;
+    }
+
+    private int digerMarketRiskEki(Oran oran) {
+        int marketKodu = oran.getMarketKodu();
+        if (marketKodu == 92 || marketKodu == 77 || marketKodu == 88) {
+            return 4;
+        }
+        if (marketKodu == 90 || marketKodu == 36 || marketKodu == 6) {
+            return 8;
+        }
+        if (marketKodu == 69 || marketKodu == 72 || marketKodu == 700 || marketKodu == 698 || marketKodu == 699) {
+            return 12;
+        }
+        return 6;
     }
 
     private boolean secimUyumlu(BahisTuru bahisTuru, String secim) {
