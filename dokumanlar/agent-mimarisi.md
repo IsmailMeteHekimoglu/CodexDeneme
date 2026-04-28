@@ -17,7 +17,7 @@ Başlangıç mimarisi sekiz agenttan oluşur ve planlanan tüm subagentlar oluş
 2. iddaa.com üzerinden bugünün uygun maçları ve temel oranları çekilir.
 3. Maç yorumları aranır ve maç sonu tahmini üretilir.
 4. Takım gücü puanı hesaplanır.
-5. Kadro riski değerlendirilir.
+5. Kadro riski değerlendirilir..
 6. Oran risk puanı hesaplanır.
 7. Final bahis önerileri düşük/orta risk eşiğine göre listelenir.
 
