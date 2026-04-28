@@ -1,0 +1,31 @@
+{
+  "iddaaEventId": 2831052,
+  "broadageId": 64055829,
+  "lig": "Suudi Arabistan 1. Lig",
+  "tarih": "2026-04-28",
+  "saat": "20:45",
+  "evSahibi": "Neom SC",
+  "deplasman": "AL Hazem FC",
+  "kaynak": "iddaa",
+  "veriGuveni": 85,
+  "oranlar": [
+    {
+      "bahisTuru": "MAC_SONUCU_1",
+      "deger": 1.38,
+      "marketKodu": 1,
+      "secim": "1"
+    },
+    {
+      "bahisTuru": "MAC_SONUCU_X",
+      "deger": 3.96,
+      "marketKodu": 1,
+      "secim": "0"
+    },
+    {
+      "bahisTuru": "MAC_SONUCU_2",
+      "deger": 4.69,
+      "marketKodu": 1,
+      "secim": "2"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "agent": "OranRiskAnalizAgent",
+  "basarili": true,
+  "macId": 2831052,
+  "riskSeviyesi": "DUSUK",
+  "riskPuani": 31,
+  "guvenPuani": 72,
+  "tahmin": "CIFTE_SANS_1X",
+  "oneCikanTaraf": "evSahibi",
+  "gerekce": "Favori oran, takim gucu ve yorum sinyali ayni yonde. Cifte sans secimi tekli galibiyete gore daha dusuk riskli.",
+  "uyarilar": [],
+  "detaylar": {
+    "favori": "evSahibi",
+    "favoriOrani": 1.38,
+    "kadroRiskEtkisi": 4,
+    "yorumUyumu": true,
+    "takimGucuUyumu": true
+  }
+}

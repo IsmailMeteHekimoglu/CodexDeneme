@@ -26,3 +26,43 @@ Başlangıç mimarisi sekiz agenttan oluşur ve planlanan tüm subagentlar oluş
 - `MacYorumAnalizAgent` yorum bulamazsa oran dengesine göre fallback analiz üretir.
 - `TakimGucuAnalizAgent` ilk sürümde oran dengesi ve iç saha avantajını kullanır; ileride lig sıralaması ve form servisleriyle zenginleştirilecek.
 - `KadroDurumuAgent` ilk sürümde yorum metinlerinde sakat, cezalı, eksik ve şüpheli sinyallerini tarar; resmi kadro veri kaynağı eklendiğinde aynı modele beslenecek.
+
+## Agent Talimat Dosyaları
+
+Her agent için ayrı rol ve karar talimatı `agentlar-md` klasöründe tutulur:
+
+- `agentlar-md/ana-yonetici-agent.md`
+- `agentlar-md/top-lig-kontrol-agent.md`
+- `agentlar-md/mac-ve-oran-toplayici-agent.md`
+- `agentlar-md/mac-yorum-analiz-agent.md`
+- `agentlar-md/takim-gucu-analiz-agent.md`
+- `agentlar-md/kadro-durumu-agent.md`
+- `agentlar-md/oran-risk-analiz-agent.md`
+- `agentlar-md/bahis-oneri-agent.md`
+
+Bu dosyalar Java sınıflarının yerine geçmez; ilgili agentın amacı, girdisi, çıktısı ve karar kurallarını açıklar.
+
+## Skill Dosyaları
+
+Tekrar kullanılabilir analiz yetenekleri `skills` klasöründe `SKILL.md` dosyalarıyla tanımlanır:
+
+- `skills/iddaa-mac-oran-toplama/SKILL.md`
+- `skills/mac-yorum-analizi/SKILL.md`
+- `skills/takim-gucu-analizi/SKILL.md`
+- `skills/kadro-risk-analizi/SKILL.md`
+- `skills/oran-risk-analizi/SKILL.md`
+- `skills/bahis-oneri-uretimi/SKILL.md`
+
+Bu skill dosyaları veri toplama, yorum analizi, takım gücü, kadro riski, oran riski ve final öneri üretimi için standart iş akışını tarif eder.
+
+## Destekleyici Mimari Dosyalar
+
+Agent mimarisinin kod disinda takip edilebilir kalmasi icin ek klasorler kullanilir:
+
+- `sozlesmeler`: Agentlar arasinda tasinacak JSON veri sozlesmeleri.
+- `ornekler`: Mac, analiz ve bahis onerisi icin ornek JSON ciktilar.
+- `test-senaryolari`: Sistemin hangi durumda nasil davranmasi gerektigini tarif eden kabul senaryolari.
+- `promptlar`: LLM destekli analiz eklendiginde kullanilacak prompt sablonlari.
+- `dokumanlar/risk-puanlama.md`: Risk ve guven puanlarinin nasil hesaplanacagini aciklar.
+- `dokumanlar/agent-cikti-formatlari.md`: Agent ciktilarinin ortak bicimini tanimlar.
+- `dokumanlar/veri-kaynaklari.md`: Veri kaynaklarini ve kullanan agentlari listeler.

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://futbolanaliz.local/sozlesmeler/bahis-onerisi.schema.json",
+  "title": "Bahis Onerisi",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "macId",
+    "karsilasma",
+    "bahisTuru",
+    "secim",
+    "oranDegeri",
+    "riskPuani",
+    "guvenPuani",
+    "riskSeviyesi",
+    "gerekce"
+  ],
+  "properties": {
+    "macId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "karsilasma": {
+      "type": "string",
+      "minLength": 3
+    },
+    "bahisTuru": {
+      "type": "string",
+      "enum": [
+        "MAC_SONUCU_1",
+        "MAC_SONUCU_X",
+        "MAC_SONUCU_2",
+        "CIFTE_SANS_1X",
+        "CIFTE_SANS_X2",
+        "ALT_2_5",
+        "UST_2_5",
+        "KARSILIKLI_GOL_VAR",
+        "KARSILIKLI_GOL_YOK"
+      ]
+    },
+    "secim": {
+      "type": "string",
+      "minLength": 1
+    },
+    "oranDegeri": {
+      "type": "number",
+      "exclusiveMinimum": 1
+    },
+    "riskPuani": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "guvenPuani": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "riskSeviyesi": {
+      "type": "string",
+      "enum": [
+        "DUSUK",
+        "ORTA",
+        "YUKSEK"
+      ]
+    },
+    "gerekce": {
+      "type": "string",
+      "minLength": 1
+    },
+    "uyarilar": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  }
+}

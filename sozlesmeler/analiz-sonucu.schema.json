@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://futbolanaliz.local/sozlesmeler/analiz-sonucu.schema.json",
+  "title": "Agent Analiz Sonucu",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "agent",
+    "basarili",
+    "macId",
+    "riskSeviyesi",
+    "guvenPuani",
+    "gerekce"
+  ],
+  "properties": {
+    "agent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "basarili": {
+      "type": "boolean"
+    },
+    "macId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "riskSeviyesi": {
+      "type": "string",
+      "enum": [
+        "BILINMIYOR",
+        "DUSUK",
+        "ORTA",
+        "YUKSEK"
+      ]
+    },
+    "riskPuani": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "guvenPuani": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "tahmin": {
+      "type": "string"
+    },
+    "oneCikanTaraf": {
+      "type": "string"
+    },
+    "gerekce": {
+      "type": "string",
+      "minLength": 1
+    },
+    "uyarilar": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "detaylar": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

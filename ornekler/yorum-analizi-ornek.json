@@ -1,0 +1,20 @@
+{
+  "agent": "MacYorumAnalizAgent",
+  "basarili": true,
+  "macId": 2831052,
+  "riskSeviyesi": "ORTA",
+  "riskPuani": 42,
+  "guvenPuani": 64,
+  "tahmin": "MAC_SONUCU_1",
+  "oneCikanTaraf": "evSahibi",
+  "gerekce": "Ev sahibi ic saha ve oran dengesinde onde gorunuyor, ancak yorum kaynagi sinirli oldugu icin guven orta seviyede.",
+  "uyarilar": [
+    "Yorum verisi tek kaynakli."
+  ],
+  "detaylar": {
+    "evSahibiSinyal": 3,
+    "beraberlikSinyal": 1,
+    "deplasmanSinyal": 1,
+    "fallback": false
+  }
+}

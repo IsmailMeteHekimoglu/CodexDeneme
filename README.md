@@ -13,6 +13,12 @@ Planlanan agent akışı oluşturuldu: ana yönetici, öncelikli organizasyon ko
 - `src/main/java/com/futbolanaliz/analiz`: Risk, oran ve performans analiz mantıkları.
 - `src/main/java/com/futbolanaliz/veri`: Veri okuma, yazma ve saklama bileşenleri.
 - `src/main/java/com/futbolanaliz/yardimcilar`: Ortak yardımcı sınıflar.
+- `agentlar-md`: Her agent için rol, girdi, çıktı ve karar talimatları.
+- `skills`: Tekrar kullanılabilir analiz iş akışları.
+- `sozlesmeler`: Agentlar arası JSON veri sözleşmeleri.
+- `ornekler`: Standart örnek girdi ve çıktı dosyaları.
+- `test-senaryolari`: Risk ve karar davranışını sabitleyen kabul senaryoları.
+- `promptlar`: LLM destekli analiz için prompt şablonları.
 - `dokumanlar`: Proje notları ve tasarım açıklamaları.
 - `kaynaklar`: Toplanan veya üretilen veri dosyaları.
 - `varliklar/ikonlar`: Uygulama ikonu ve masaüstü kısayolu görselleri.
