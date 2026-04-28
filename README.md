@@ -61,3 +61,25 @@ Bu proje için JDK yolu kullanıcı ortam değişkenlerine eklendi:
 ```text
 JAVA_HOME=C:\Users\IMHek\OneDrive\Documents\JDK\java-1.8.0-openjdk-1.8.0.492.b09-1.win.jdk.x86_64
 ```
+
+## LLM Destekli Yorum Analizi
+
+Yorum analizi varsayilan olarak yerel kural tabanli akisi kullanir. OpenAI API anahtari tanimliysa mac yorumlari icin LLM destekli analiz devreye girer:
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+Varsayilan model `gpt-4.1-mini` olarak ayarlidir. Farkli model kullanmak icin:
+
+```powershell
+$env:FUTBOL_ANALIZ_LLM_MODEL="gpt-4.1-mini"
+```
+
+LLM analizini gecici olarak kapatmak icin:
+
+```powershell
+$env:FUTBOL_ANALIZ_LLM="0"
+```
+
+API anahtari yoksa veya LLM istegi basarisiz olursa uygulama otomatik olarak eski kural tabanli yoruma geri doner.

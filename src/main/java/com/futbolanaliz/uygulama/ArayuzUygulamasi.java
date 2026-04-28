@@ -15,6 +15,7 @@ import com.futbolanaliz.modeller.Oran;
 import com.futbolanaliz.modeller.OranRiskAnalizi;
 import com.futbolanaliz.modeller.TakimGucuAnalizi;
 import com.futbolanaliz.modeller.TopLig;
+import com.futbolanaliz.servisler.TokenTahminServisi;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
@@ -85,10 +86,12 @@ public class ArayuzUygulamasi extends JFrame {
     private final JTextArea sonucAlani = new JTextArea();
     private final AnimasyonluBaslikPanel baslikPaneli = new AnimasyonluBaslikPanel();
     private final RiskCemberi riskCemberi = new RiskCemberi();
+    private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
 
     private List<TopLig> kontrolEdilenLigler = new ArrayList<TopLig>();
     private List<Mac> maclar = new ArrayList<Mac>();
     private Mac seciliMac;
+    private int sonCalismaTahminiTokenSayisi;
 
     public ArayuzUygulamasi() {
         super("Futbol Analiz Agent");
@@ -248,6 +251,8 @@ public class ArayuzUygulamasi extends JFrame {
     }
 
     private void maclariYukle() {
+        final int baslangicTokenTahmini = tokenTahminServisi.tahminEt("arayuz calisma baslangici", LocalDate.now().format(TARIH_FORMATI));
+        sonCalismaTahminiTokenSayisi = baslangicTokenTahmini;
         durumEtiketi.setText("Yükleniyor...");
         baslikEtiketi.setText(LocalDate.now().format(TARIH_FORMATI) + " için iddaa.com verileri alınıyor");
         yenileButonu.setEnabled(false);
@@ -261,11 +266,11 @@ public class ArayuzUygulamasi extends JFrame {
             @Override
             protected List<Mac> doInBackground() {
                 TopLigKontrolAgent topLigKontrolAgent = new TopLigKontrolAgent();
-                topLigKontrolAgent.calistir();
+                sonCalismaTahminiTokenSayisi += topLigKontrolAgent.calistir().getTahminiTokenSayisi();
                 kontrolEdilenLigler = topLigKontrolAgent.getKontrolEdilenLigler();
 
                 MacVeOranToplayiciAgent macAgent = new MacVeOranToplayiciAgent(kontrolEdilenLigler);
-                macAgent.calistir();
+                sonCalismaTahminiTokenSayisi += macAgent.calistir().getTahminiTokenSayisi();
                 return macAgent.getToplananMaclar();
             }
 
@@ -334,25 +339,32 @@ public class ArayuzUygulamasi extends JFrame {
         new SwingWorker<AnalizEkranSonucu, Void>() {
             @Override
             protected AnalizEkranSonucu doInBackground() {
+                int tahminiTokenSayisi = 0;
                 MacYorumAnalizAgent yorumAgent = new MacYorumAnalizAgent(tekMac);
-                yorumAgent.calistir();
+                tahminiTokenSayisi += yorumAgent.calistir().getTahminiTokenSayisi();
                 List<MacSonuAnalizi> yorumAnalizleri = yorumAgent.getAnalizler();
 
                 TakimGucuAnalizAgent takimAgent = new TakimGucuAnalizAgent(tekMac);
-                takimAgent.calistir();
+                tahminiTokenSayisi += takimAgent.calistir().getTahminiTokenSayisi();
                 List<TakimGucuAnalizi> takimAnalizleri = takimAgent.getAnalizler();
 
                 KadroDurumuAgent kadroAgent = new KadroDurumuAgent(tekMac, yorumAnalizleri);
-                kadroAgent.calistir();
+                tahminiTokenSayisi += kadroAgent.calistir().getTahminiTokenSayisi();
                 List<KadroDurumuAnalizi> kadroAnalizleri = kadroAgent.getAnalizler();
 
                 OranRiskAnalizAgent riskAgent = new OranRiskAnalizAgent(tekMac, yorumAnalizleri, takimAnalizleri, kadroAnalizleri);
-                riskAgent.calistir();
+                tahminiTokenSayisi += riskAgent.calistir().getTahminiTokenSayisi();
                 List<OranRiskAnalizi> riskAnalizleri = riskAgent.getAnalizler();
 
                 BahisOneriAgent oneriAgent = new BahisOneriAgent(riskAnalizleri);
-                oneriAgent.calistir();
-                return new AnalizEkranSonucu(yorumAnalizleri, takimAnalizleri, kadroAnalizleri, riskAnalizleri, oneriAgent.getOneriler());
+                tahminiTokenSayisi += oneriAgent.calistir().getTahminiTokenSayisi();
+                tahminiTokenSayisi += tokenTahminServisi.tahminEt(tekMac)
+                        + tokenTahminServisi.tahminEt(yorumAnalizleri)
+                        + tokenTahminServisi.tahminEt(takimAnalizleri)
+                        + tokenTahminServisi.tahminEt(kadroAnalizleri)
+                        + tokenTahminServisi.tahminEt(riskAnalizleri)
+                        + tokenTahminServisi.tahminEt(oneriAgent.getOneriler());
+                return new AnalizEkranSonucu(yorumAnalizleri, takimAnalizleri, kadroAnalizleri, riskAnalizleri, oneriAgent.getOneriler(), tahminiTokenSayisi);
             }
 
             @Override
@@ -393,6 +405,7 @@ public class ArayuzUygulamasi extends JFrame {
 
         if (macSonu != null) {
             metin.append("Maç sonu tahmini: ").append(macSonu.getMacSonuTahmini()).append(" | Güven: ").append(macSonu.getGuvenPuani()).append("/100\n");
+            metin.append("Yorum analizi: ").append(macSonu.getGerekce()).append("\n");
         }
 
         if (takim != null) {
@@ -494,13 +507,15 @@ public class ArayuzUygulamasi extends JFrame {
         private final List<KadroDurumuAnalizi> kadroAnalizleri;
         private final List<OranRiskAnalizi> riskAnalizleri;
         private final List<BahisOnerisi> oneriler;
+        private final int tahminiTokenSayisi;
 
-        private AnalizEkranSonucu(List<MacSonuAnalizi> yorumAnalizleri, List<TakimGucuAnalizi> takimAnalizleri, List<KadroDurumuAnalizi> kadroAnalizleri, List<OranRiskAnalizi> riskAnalizleri, List<BahisOnerisi> oneriler) {
+        private AnalizEkranSonucu(List<MacSonuAnalizi> yorumAnalizleri, List<TakimGucuAnalizi> takimAnalizleri, List<KadroDurumuAnalizi> kadroAnalizleri, List<OranRiskAnalizi> riskAnalizleri, List<BahisOnerisi> oneriler, int tahminiTokenSayisi) {
             this.yorumAnalizleri = yorumAnalizleri;
             this.takimAnalizleri = takimAnalizleri;
             this.kadroAnalizleri = kadroAnalizleri;
             this.riskAnalizleri = riskAnalizleri;
             this.oneriler = oneriler;
+            this.tahminiTokenSayisi = tahminiTokenSayisi;
         }
     }
 

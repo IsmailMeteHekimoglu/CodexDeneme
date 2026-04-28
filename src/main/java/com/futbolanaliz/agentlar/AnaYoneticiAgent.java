@@ -9,6 +9,7 @@ import com.futbolanaliz.modeller.Oran;
 import com.futbolanaliz.modeller.OranRiskAnalizi;
 import com.futbolanaliz.modeller.TakimGucuAnalizi;
 import com.futbolanaliz.modeller.TopLig;
+import com.futbolanaliz.servisler.TokenTahminServisi;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +18,8 @@ import java.util.List;
 public class AnaYoneticiAgent implements Agent {
     private static final DateTimeFormatter TARIH_FORMATI = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter SAAT_FORMATI = DateTimeFormatter.ofPattern("HH:mm");
+    private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
+    private int toplamTahminiTokenSayisi;
 
     @Override
     public String ad() {
@@ -25,12 +28,14 @@ public class AnaYoneticiAgent implements Agent {
 
     @Override
     public AgentSonucu calistir() {
+        toplamTahminiTokenSayisi = 0;
         LocalDate bugun = LocalDate.now();
         TopLigKontrolAgent topLigKontrolAgent = new TopLigKontrolAgent();
 
         System.out.println("Futbol Analiz Agent başlatıldı.");
         System.out.println("Tarih: " + bugun.format(TARIH_FORMATI));
         System.out.println("Çalışan agent: " + ad());
+        tokenBilgisiniYazdir("Uygulama calisma baslangici", tokenTahminServisi.tahminEt(ad(), bugun.format(TARIH_FORMATI)));
         System.out.println("");
 
         AgentSonucu topLigSonucu = topLigKontrolAgent.calistir();
@@ -68,6 +73,7 @@ public class AnaYoneticiAgent implements Agent {
         BahisOneriAgent bahisOneriAgent = new BahisOneriAgent(oranRiskAnalizAgent.getAnalizler());
         agentSonucunuYazdir(bahisOneriAgent.calistir());
         bahisOnerileriniYazdir(bahisOneriAgent.getOneriler());
+        toplamTokenBilgisiniYazdir();
 
         return AgentSonucu.basarili(
                 ad(),
@@ -76,8 +82,19 @@ public class AnaYoneticiAgent implements Agent {
     }
 
     private void agentSonucunuYazdir(AgentSonucu sonuc) {
+        toplamTahminiTokenSayisi += sonuc.getTahminiTokenSayisi();
         System.out.println("Alt agent: " + sonuc.getAgentAdi());
         System.out.println("Durum: " + sonuc.getMesaj());
+        System.out.println("Tahmini token: " + sonuc.getTahminiTokenSayisi());
+    }
+
+    private void tokenBilgisiniYazdir(String baslik, int tokenSayisi) {
+        toplamTahminiTokenSayisi += tokenSayisi;
+        System.out.println(baslik + ": ~" + tokenSayisi + " token");
+    }
+
+    private void toplamTokenBilgisiniYazdir() {
+        System.out.println("Toplam tahmini token: ~" + toplamTahminiTokenSayisi + " token");
     }
 
     private void topLigleriYazdir(List<TopLig> ligler) {

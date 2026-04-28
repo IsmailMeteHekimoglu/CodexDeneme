@@ -1,11 +1,14 @@
 package com.futbolanaliz.agentlar;
 
 import com.futbolanaliz.modeller.BahisTuru;
+import com.futbolanaliz.modeller.LlmYorumAnalizSonucu;
 import com.futbolanaliz.modeller.Mac;
 import com.futbolanaliz.modeller.MacSonuAnalizi;
 import com.futbolanaliz.modeller.MacYorumu;
 import com.futbolanaliz.modeller.Oran;
+import com.futbolanaliz.servisler.LlmYorumAnalizServisi;
 import com.futbolanaliz.servisler.MacYorumServisi;
+import com.futbolanaliz.servisler.TokenTahminServisi;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -16,8 +19,11 @@ public class MacYorumAnalizAgent implements Agent {
     private static final Locale TURKCE = new Locale("tr", "TR");
 
     private final MacYorumServisi macYorumServisi = new MacYorumServisi();
+    private final LlmYorumAnalizServisi llmYorumAnalizServisi = new LlmYorumAnalizServisi();
+    private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
     private final List<Mac> maclar;
     private final List<MacSonuAnalizi> analizler = new ArrayList<MacSonuAnalizi>();
+    private int sonLlmTokenSayisi;
 
     public MacYorumAnalizAgent(List<Mac> maclar) {
         this.maclar = maclar == null ? new ArrayList<Mac>() : new ArrayList<Mac>(maclar);
@@ -25,21 +31,24 @@ public class MacYorumAnalizAgent implements Agent {
 
     @Override
     public String ad() {
-        return "Maç Yorumu ve Maç Sonu Analiz Agent";
+        return "Mac Yorumu ve Mac Sonu Analiz Agent";
     }
 
     @Override
     public AgentSonucu calistir() {
         analizler.clear();
+        sonLlmTokenSayisi = 0;
 
         for (Mac mac : maclar) {
             List<MacYorumu> yorumlar = macYorumServisi.yorumlariGetir(mac);
             analizler.add(analizOlustur(mac, yorumlar));
         }
 
+        String mesaj = analizler.size() + " mac icin yorum destekli mac sonu analizi uretildi.";
         return AgentSonucu.basarili(
                 ad(),
-                analizler.size() + " maç için yorum destekli maç sonu analizi üretildi."
+                mesaj,
+                tokenTahminServisi.agentTahmini(ad(), mesaj, maclar, analizler) + sonLlmTokenSayisi
         );
     }
 
@@ -48,6 +57,11 @@ public class MacYorumAnalizAgent implements Agent {
     }
 
     private MacSonuAnalizi analizOlustur(Mac mac, List<MacYorumu> yorumlar) {
+        MacSonuAnalizi llmAnalizi = llmAnalizOlustur(mac, yorumlar);
+        if (llmAnalizi != null) {
+            return llmAnalizi;
+        }
+
         Oran favoriOran = favoriMacSonuOrani(mac);
         String tahmin = tahminAdi(favoriOran);
         int guvenPuani = oranGuvenPuani(favoriOran);
@@ -79,6 +93,26 @@ public class MacYorumAnalizAgent implements Agent {
 
         guvenPuani = Math.max(25, Math.min(85, guvenPuani));
         return new MacSonuAnalizi(mac, tahmin, guvenPuani, gerekceOlustur(favoriOran, yorumlar, evSinyali, deplasmanSinyali, beraberlikSinyali), yorumlar);
+    }
+
+    private MacSonuAnalizi llmAnalizOlustur(Mac mac, List<MacYorumu> yorumlar) {
+        try {
+            LlmYorumAnalizSonucu sonuc = llmYorumAnalizServisi.macYorumlariniAnalizEt(mac, yorumlar);
+            if (sonuc == null) {
+                return null;
+            }
+
+            sonLlmTokenSayisi += sonuc.getToplamTokenSayisi();
+            String gerekce = sonuc.getGerekce()
+                    + " LLM token kullanimi: ~"
+                    + sonuc.getGirisTokenSayisi()
+                    + " giris / ~"
+                    + sonuc.getCikisTokenSayisi()
+                    + " cikis.";
+            return new MacSonuAnalizi(mac, sonuc.getMacSonuTahmini(), sonuc.getGuvenPuani(), gerekce, yorumlar);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private Oran favoriMacSonuOrani(Mac mac) {
@@ -161,17 +195,17 @@ public class MacYorumAnalizAgent implements Agent {
         StringBuilder gerekce = new StringBuilder();
 
         if (favoriOran == null) {
-            gerekce.append("Maç sonucu oranı bulunamadı; yorum ve genel sinyal dengesi sınırlı yorumlandı.");
+            gerekce.append("Mac sonucu orani bulunamadi; yorum ve genel sinyal dengesi sinirli yorumlandi.");
         } else {
-            gerekce.append("En düşük maç sonucu oranı ")
+            gerekce.append("En dusuk mac sonucu orani ")
                     .append(favoriOran.getBahisTuru().getGorunenAd())
-                    .append(" tarafında: ")
+                    .append(" tarafinda: ")
                     .append(favoriOran.formatliDeger())
                     .append(".");
         }
 
         if (yorumlar.isEmpty()) {
-            gerekce.append(" iddaa yorum verisi bulunamadı; analiz temel oran dengesine göre üretildi.");
+            gerekce.append(" iddaa yorum verisi bulunamadi; analiz temel oran dengesine gore uretildi.");
         } else {
             gerekce.append(" ")
                     .append(yorumlar.size())
