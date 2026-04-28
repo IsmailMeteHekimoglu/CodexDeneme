@@ -20,15 +20,16 @@ import java.util.Map;
 
 public class LlmBahisOneriServisi {
     private static final String OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-    private static final String VARSAYILAN_MODEL = "gpt-4.1-mini";
     private static final String ONERI_PROMPT_DOSYASI = "promptlar/bahis-oneri.prompt.md";
     private static final int EN_FAZLA_ADAY = 8;
 
     private final JsonServisi jsonServisi = new JsonServisi();
+    private final AyarServisi ayarServisi = new AyarServisi();
+    private final LlmCacheServisi cacheServisi = new LlmCacheServisi();
 
     public boolean kullanilabilirMi() {
-        String apiKey = apiAnahtari();
-        return apiKey != null && !apiKey.trim().isEmpty() && !"0".equals(System.getenv("FUTBOL_ANALIZ_LLM"));
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        return ayarlar.isLlmAktif() && ayarlar.apiKeyVarMi();
     }
 
     public BahisOnerisi oneriUret(List<OranRiskAnalizi> riskAnalizleri) {
@@ -38,8 +39,17 @@ public class LlmBahisOneriServisi {
 
         String sistemMesaji = sistemMesajiOlustur();
         String kullaniciMesaji = kullaniciMesajiOlustur(riskAnalizleri);
-        String cevap = httpPost(istekGovdesiOlustur(sistemMesaji, kullaniciMesaji));
-        String ciktiMetni = ciktiMetniniBul(cevap);
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        String cacheAnahtari = ayarlar.getModel() + "\n" + sistemMesaji + "\n" + kullaniciMesaji;
+        String ciktiMetni = ayarlar.isCacheAktif() ? cacheServisi.oku("oneri", cacheAnahtari) : null;
+        boolean cacheKullanildi = ciktiMetni != null && !ciktiMetni.trim().isEmpty();
+        if (!cacheKullanildi) {
+            String cevap = httpPost(istekGovdesiOlustur(sistemMesaji, kullaniciMesaji, ayarlar.getModel()), ayarlar.getApiKey());
+            ciktiMetni = ciktiMetniniBul(cevap);
+            if (ayarlar.isCacheAktif()) {
+                cacheServisi.yaz("oneri", cacheAnahtari, ciktiMetni);
+            }
+        }
         if (ciktiMetni == null || ciktiMetni.trim().isEmpty()) {
             return null;
         }
@@ -74,7 +84,7 @@ public class LlmBahisOneriServisi {
                 eslesenAnaliz.getOranDegeri(),
                 sinirla(riskPuani),
                 sinirla(guvenPuani),
-                "LLM destekli final oneri: " + gerekce
+                "LLM destekli final oneri" + (cacheKullanildi ? " (cache)" : "") + ": " + gerekce
         );
     }
 
@@ -139,9 +149,9 @@ public class LlmBahisOneriServisi {
         return enIyi;
     }
 
-    private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji) {
+    private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji, String model) {
         return "{"
-                + "\"model\":\"" + jsonEscape(model()) + "\","
+                + "\"model\":\"" + jsonEscape(model) + "\","
                 + "\"max_output_tokens\":350,"
                 + "\"input\":["
                 + "{\"role\":\"system\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(sistemMesaji) + "\"}]},"
@@ -150,7 +160,7 @@ public class LlmBahisOneriServisi {
                 + "}";
     }
 
-    private String httpPost(String govde) {
+    private String httpPost(String govde, String apiKey) {
         HttpURLConnection baglanti = null;
         try {
             URL url = new URL(OPENAI_RESPONSES_URL);
@@ -159,7 +169,7 @@ public class LlmBahisOneriServisi {
             baglanti.setConnectTimeout(15000);
             baglanti.setReadTimeout(45000);
             baglanti.setDoOutput(true);
-            baglanti.setRequestProperty("Authorization", "Bearer " + apiAnahtari());
+            baglanti.setRequestProperty("Authorization", "Bearer " + apiKey);
             baglanti.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             baglanti.setRequestProperty("Accept", "application/json");
 
@@ -236,15 +246,6 @@ public class LlmBahisOneriServisi {
         } catch (IOException e) {
             return "";
         }
-    }
-
-    private String apiAnahtari() {
-        return System.getenv("OPENAI_API_KEY");
-    }
-
-    private String model() {
-        String model = System.getenv("FUTBOL_ANALIZ_LLM_MODEL");
-        return model == null || model.trim().isEmpty() ? VARSAYILAN_MODEL : model.trim();
     }
 
     private String jsonMetniniTemizle(String json) {

@@ -3,6 +3,8 @@ tmp/
 
 *.class
 *.log
+config.properties
+kaynaklar/llm-cache/
 
 .idea/
 .vscode/

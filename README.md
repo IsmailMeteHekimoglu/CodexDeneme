@@ -83,3 +83,5 @@ $env:FUTBOL_ANALIZ_LLM="0"
 ```
 
 API anahtari yoksa veya LLM istegi basarisiz olursa uygulama otomatik olarak eski kural tabanli yoruma geri doner.
+
+Masaustu arayuzundeki `Ayarlar` butonu ile API key, model, LLM acik/kapali ve cache acik/kapali tercihleri kaydedilebilir. Ayarlar `config.properties` dosyasinda tutulur; bu dosya git'e dahil edilmez. Cache sonuclari `kaynaklar/llm-cache/` altina yazilir ve ayni analiz tekrarlandiginda OpenAI istegi yapmadan kullanilir.

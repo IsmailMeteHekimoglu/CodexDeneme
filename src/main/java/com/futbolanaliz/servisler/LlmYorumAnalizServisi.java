@@ -20,17 +20,18 @@ import java.util.Map;
 
 public class LlmYorumAnalizServisi {
     private static final String OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-    private static final String VARSAYILAN_MODEL = "gpt-4.1-mini";
     private static final String YORUM_PROMPT_DOSYASI = "promptlar/mac-yorum-analizi.prompt.md";
     private static final int EN_FAZLA_YORUM = 5;
     private static final int YORUM_KARAKTER_LIMITI = 700;
 
     private final JsonServisi jsonServisi = new JsonServisi();
     private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
+    private final AyarServisi ayarServisi = new AyarServisi();
+    private final LlmCacheServisi cacheServisi = new LlmCacheServisi();
 
     public boolean kullanilabilirMi() {
-        String apiKey = apiAnahtari();
-        return apiKey != null && !apiKey.trim().isEmpty() && !"0".equals(System.getenv("FUTBOL_ANALIZ_LLM"));
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        return ayarlar.isLlmAktif() && ayarlar.apiKeyVarMi();
     }
 
     public LlmYorumAnalizSonucu macYorumlariniAnalizEt(Mac mac, List<MacYorumu> yorumlar) {
@@ -40,8 +41,17 @@ public class LlmYorumAnalizServisi {
 
         String sistemMesaji = sistemMesajiOlustur();
         String kullaniciMesaji = kullaniciMesajiOlustur(mac, yorumlar);
-        String cevap = httpPost(istekGovdesiOlustur(sistemMesaji, kullaniciMesaji));
-        String ciktiMetni = ciktiMetniniBul(cevap);
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        String cacheAnahtari = ayarlar.getModel() + "\n" + sistemMesaji + "\n" + kullaniciMesaji;
+        String ciktiMetni = ayarlar.isCacheAktif() ? cacheServisi.oku("yorum", cacheAnahtari) : null;
+        boolean cacheKullanildi = ciktiMetni != null && !ciktiMetni.trim().isEmpty();
+        if (!cacheKullanildi) {
+            String cevap = httpPost(istekGovdesiOlustur(sistemMesaji, kullaniciMesaji, ayarlar.getModel()), ayarlar.getApiKey());
+            ciktiMetni = ciktiMetniniBul(cevap);
+            if (ayarlar.isCacheAktif()) {
+                cacheServisi.yaz("yorum", cacheAnahtari, ciktiMetni);
+            }
+        }
 
         if (ciktiMetni == null || ciktiMetni.trim().isEmpty()) {
             return null;
@@ -59,7 +69,7 @@ public class LlmYorumAnalizServisi {
         return new LlmYorumAnalizSonucu(
                 tahmin,
                 guven,
-                "LLM destekli analiz: " + gerekce,
+                "LLM destekli analiz" + (cacheKullanildi ? " (cache)" : "") + ": " + gerekce,
                 tokenTahminServisi.tahminEt(sistemMesaji, kullaniciMesaji),
                 tokenTahminServisi.tahminEt(ciktiMetni)
         );
@@ -112,9 +122,9 @@ public class LlmYorumAnalizServisi {
         }
     }
 
-    private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji) {
+    private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji, String model) {
         return "{"
-                + "\"model\":\"" + jsonEscape(model()) + "\","
+                + "\"model\":\"" + jsonEscape(model) + "\","
                 + "\"max_output_tokens\":350,"
                 + "\"input\":["
                 + "{\"role\":\"system\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(sistemMesaji) + "\"}]},"
@@ -123,7 +133,7 @@ public class LlmYorumAnalizServisi {
                 + "}";
     }
 
-    private String httpPost(String govde) {
+    private String httpPost(String govde, String apiKey) {
         HttpURLConnection baglanti = null;
 
         try {
@@ -133,7 +143,7 @@ public class LlmYorumAnalizServisi {
             baglanti.setConnectTimeout(15000);
             baglanti.setReadTimeout(45000);
             baglanti.setDoOutput(true);
-            baglanti.setRequestProperty("Authorization", "Bearer " + apiAnahtari());
+            baglanti.setRequestProperty("Authorization", "Bearer " + apiKey);
             baglanti.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             baglanti.setRequestProperty("Accept", "application/json");
 
@@ -226,10 +236,6 @@ public class LlmYorumAnalizServisi {
         return (Map<?, ?>) kok;
     }
 
-    private String apiAnahtari() {
-        return System.getenv("OPENAI_API_KEY");
-    }
-
     private String jsonMetniniTemizle(String json) {
         String temiz = json == null ? "" : json.trim();
         if (temiz.startsWith("```")) {
@@ -239,11 +245,6 @@ public class LlmYorumAnalizServisi {
             }
         }
         return temiz;
-    }
-
-    private String model() {
-        String model = System.getenv("FUTBOL_ANALIZ_LLM_MODEL");
-        return model == null || model.trim().isEmpty() ? VARSAYILAN_MODEL : model.trim();
     }
 
     private String temizTahmin(String tahmin) {
