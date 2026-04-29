@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -33,8 +34,14 @@ public class LlmBahisOneriServisi {
     }
 
     public BahisOnerisi oneriUret(List<OranRiskAnalizi> riskAnalizleri) {
+        List<BahisOnerisi> oneriler = onerilerUret(riskAnalizleri);
+        return oneriler.isEmpty() ? null : oneriler.get(0);
+    }
+
+    public List<BahisOnerisi> onerilerUret(List<OranRiskAnalizi> riskAnalizleri) {
+        List<BahisOnerisi> oneriler = new ArrayList<BahisOnerisi>();
         if (!kullanilabilirMi() || riskAnalizleri == null || riskAnalizleri.isEmpty()) {
-            return null;
+            return oneriler;
         }
 
         String sistemMesaji = sistemMesajiOlustur();
@@ -51,27 +58,57 @@ public class LlmBahisOneriServisi {
             }
         }
         if (ciktiMetni == null || ciktiMetni.trim().isEmpty()) {
-            return null;
+            return oneriler;
         }
 
         Map<?, ?> sonuc = jsonHaritasi(ciktiMetni);
         boolean oneriVar = !"false".equalsIgnoreCase(metin(sonuc.get("onerilebilir")));
         if (!oneriVar) {
-            return null;
+            return oneriler;
         }
 
+        Object oneriListesi = sonuc.get("oneriler");
+        if (oneriListesi instanceof List) {
+            for (Object oneriObjesi : (List<?>) oneriListesi) {
+                Map<?, ?> oneriHaritasi = oneriObjesi instanceof Map ? (Map<?, ?>) oneriObjesi : null;
+                BahisOnerisi oneri = oneriHaritasi == null ? null : oneriOlustur(riskAnalizleri, oneriHaritasi, cacheKullanildi);
+                if (oneri != null) {
+                    oneriler.add(oneri);
+                }
+                if (oneriler.size() == 3) {
+                    break;
+                }
+            }
+        }
+
+        if (oneriler.isEmpty()) {
+            BahisOnerisi tekOneri = oneriOlustur(riskAnalizleri, sonuc, cacheKullanildi);
+            if (tekOneri != null) {
+                oneriler.add(tekOneri);
+            }
+        }
+
+        return oneriler;
+    }
+
+    private BahisOnerisi oneriOlustur(List<OranRiskAnalizi> riskAnalizleri, Map<?, ?> sonuc, boolean cacheKullanildi) {
         OranRiskAnalizi eslesenAnaliz = analizBul(riskAnalizleri, sonuc);
+        if (eslesenAnaliz == null) {
+            eslesenAnaliz = enYakinRiskProfilindekiAnaliz(riskAnalizleri, metin(sonuc.get("riskSeviyesi")));
+        }
         if (eslesenAnaliz == null) {
             eslesenAnaliz = enDusukRiskliAnaliz(riskAnalizleri);
         }
-
         if (eslesenAnaliz == null) {
             return null;
         }
-
         String gerekce = metin(sonuc.get("gerekce"));
         if (gerekce.isEmpty()) {
             gerekce = eslesenAnaliz.getGerekce();
+        }
+        String riskSeviyesi = metin(sonuc.get("riskSeviyesi"));
+        if (!riskSeviyesi.isEmpty()) {
+            gerekce = riskSeviyesi + " risk profili: " + gerekce;
         }
 
         int riskPuani = sayi(sonuc.get("riskPuani"), eslesenAnaliz.getRiskPuani());
@@ -96,9 +133,10 @@ public class LlmBahisOneriServisi {
 
         return prompt
                 + "\n\nUygulama uyumlulugu icin cevabi yalniz JSON olarak dondur. "
+                + "Dusuk, orta ve cok riskli olmak uzere tam 3 tahmin uret. "
                 + "En az su alanlar bulunmali: "
-                + "{\"onerilebilir\":true,\"macId\":0,\"bahisTuru\":\"MAC_SONUCU_1\",\"secim\":\"Mac Sonucu 1\","
-                + "\"riskPuani\":30,\"guvenPuani\":70,\"gerekce\":\"kisa gerekce\"}. "
+                + "{\"onerilebilir\":true,\"oneriler\":[{\"macId\":0,\"bahisTuru\":\"MAC_SONUCU_1\",\"secim\":\"Mac Sonucu 1\","
+                + "\"riskSeviyesi\":\"DUSUK\",\"riskPuani\":30,\"guvenPuani\":70,\"gerekce\":\"kisa gerekce\"}]}. "
                 + "Tanimsiz marketlerde bahisTuru DIGER olabilir; bu durumda secim alanini aday listesinde geldigi gibi kullan. "
                 + "Oneri yapilmayacaksa {\"onerilebilir\":false,\"gerekce\":\"neden\"} dondur.";
     }
@@ -147,6 +185,36 @@ public class LlmBahisOneriServisi {
         OranRiskAnalizi enIyi = null;
         for (OranRiskAnalizi analiz : analizler) {
             if (enIyi == null || analiz.getRiskPuani() < enIyi.getRiskPuani()) {
+                enIyi = analiz;
+            }
+        }
+        return enIyi;
+    }
+
+    private OranRiskAnalizi enYakinRiskProfilindekiAnaliz(List<OranRiskAnalizi> analizler, String riskSeviyesi) {
+        if (riskSeviyesi == null || riskSeviyesi.trim().isEmpty()) {
+            return null;
+        }
+        String temiz = riskSeviyesi.trim().toUpperCase();
+        int alt;
+        int ust;
+        if ("DUSUK".equals(temiz)) {
+            alt = 0;
+            ust = 35;
+        } else if ("ORTA".equals(temiz)) {
+            alt = 36;
+            ust = 60;
+        } else {
+            alt = 61;
+            ust = 100;
+        }
+
+        OranRiskAnalizi enIyi = null;
+        for (OranRiskAnalizi analiz : analizler) {
+            if (analiz.getRiskPuani() < alt || analiz.getRiskPuani() > ust) {
+                continue;
+            }
+            if (enIyi == null || analiz.getGuvenPuani() > enIyi.getGuvenPuani()) {
                 enIyi = analiz;
             }
         }
