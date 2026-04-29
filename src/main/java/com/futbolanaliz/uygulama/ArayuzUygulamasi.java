@@ -8,14 +8,17 @@ import com.futbolanaliz.agentlar.OranRiskAnalizAgent;
 import com.futbolanaliz.agentlar.TakimGucuAnalizAgent;
 import com.futbolanaliz.agentlar.TopLigKontrolAgent;
 import com.futbolanaliz.modeller.BahisOnerisi;
+import com.futbolanaliz.modeller.BahisTuru;
 import com.futbolanaliz.modeller.KadroDurumuAnalizi;
 import com.futbolanaliz.modeller.Mac;
 import com.futbolanaliz.modeller.MacSonuAnalizi;
+import com.futbolanaliz.modeller.MacYorumu;
 import com.futbolanaliz.modeller.Oran;
 import com.futbolanaliz.modeller.OranRiskAnalizi;
 import com.futbolanaliz.modeller.TakimGucuAnalizi;
 import com.futbolanaliz.modeller.TopLig;
 import com.futbolanaliz.servisler.AyarServisi;
+import com.futbolanaliz.servisler.MacYorumServisi;
 import com.futbolanaliz.servisler.TokenTahminServisi;
 
 import javax.imageio.ImageIO;
@@ -23,6 +26,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -33,7 +37,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-import javax.swing.JTextField;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
@@ -98,6 +102,7 @@ public class ArayuzUygulamasi extends JFrame {
     private final RiskCemberi riskCemberi = new RiskCemberi();
     private final AyarServisi ayarServisi = new AyarServisi();
     private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
+    private final MacYorumServisi macYorumServisi = new MacYorumServisi();
 
     private List<TopLig> kontrolEdilenLigler = new ArrayList<TopLig>();
     private List<Mac> maclar = new ArrayList<Mac>();
@@ -176,8 +181,11 @@ public class ArayuzUygulamasi extends JFrame {
 
         JPanel detayPaneli = kartPanel(new BorderLayout(0, 14));
         detayPaneli.add(detayUstPaneli(), BorderLayout.NORTH);
-        detayPaneli.add(oranlarPaneli(), BorderLayout.CENTER);
-        detayPaneli.add(analizBolumu(), BorderLayout.SOUTH);
+        JSplitPane oranAnalizBolumu = new JSplitPane(JSplitPane.VERTICAL_SPLIT, oranlarPaneli(), analizBolumu());
+        oranAnalizBolumu.setResizeWeight(0.36);
+        oranAnalizBolumu.setDividerSize(8);
+        oranAnalizBolumu.setBorder(null);
+        detayPaneli.add(oranAnalizBolumu, BorderLayout.CENTER);
 
         JSplitPane govde = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, listePaneli, detayPaneli);
         govde.setResizeWeight(0.38);
@@ -213,13 +221,14 @@ public class ArayuzUygulamasi extends JFrame {
     private JPanel oranlarPaneli() {
         JPanel panel = seffafPanel(new BorderLayout(0, 10));
         panel.add(baslik("Oranlar"), BorderLayout.NORTH);
-        oranPaneli.setLayout(new BoxLayout(oranPaneli, BoxLayout.Y_AXIS));
+        oranPaneli.setLayout(new BorderLayout(0, 10));
         oranPaneli.setOpaque(false);
         JScrollPane oranScroll = new JScrollPane(oranPaneli);
         oranScroll.setBorder(BorderFactory.createEmptyBorder());
         oranScroll.setOpaque(false);
         oranScroll.getViewport().setOpaque(false);
-        oranScroll.setPreferredSize(new Dimension(420, 250));
+        oranScroll.setMinimumSize(new Dimension(360, 120));
+        oranScroll.setPreferredSize(new Dimension(420, 170));
         panel.add(oranScroll, BorderLayout.CENTER);
         return panel;
     }
@@ -234,7 +243,8 @@ public class ArayuzUygulamasi extends JFrame {
         sonucAlani.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
         JScrollPane sonucScroll = new JScrollPane(sonucAlani);
         sonucScroll.setBorder(BorderFactory.createLineBorder(new Color(224, 234, 230)));
-        sonucScroll.setPreferredSize(new Dimension(420, 160));
+        sonucScroll.setMinimumSize(new Dimension(360, 180));
+        sonucScroll.setPreferredSize(new Dimension(420, 360));
         panel.add(sonucScroll, BorderLayout.CENTER);
         return panel;
     }
@@ -279,7 +289,17 @@ public class ArayuzUygulamasi extends JFrame {
         gbc.weightx = 1.0;
 
         JPasswordField apiKeyAlani = new JPasswordField(ayarlar.getApiKey(), 28);
-        JTextField modelAlani = new JTextField(ayarlar.getModel(), 28);
+        JCheckBox apiKeyGosterKutusu = new JCheckBox("API keyleri gorunur ve kopyalanabilir yap", ayarServisi.apiKeyleriGoster());
+        apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), apiKeyAlani);
+        apiKeyGosterKutusu.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), apiKeyAlani);
+            }
+        });
+        JComboBox<String> modelAlani = new JComboBox<String>(ayarServisi.kullanilabilirModeller().toArray(new String[0]));
+        modelAlani.setEditable(false);
+        modelAlani.setSelectedItem(ayarlar.getModel());
         JCheckBox llmAktifKutusu = new JCheckBox("LLM analizini kullan", ayarlar.isLlmAktif());
         JCheckBox cacheAktifKutusu = new JCheckBox("Ayni analizleri cache ile tekrar kullan", ayarlar.isCacheAktif());
 
@@ -288,8 +308,10 @@ public class ArayuzUygulamasi extends JFrame {
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.gridwidth = 2;
-        panel.add(llmAktifKutusu, gbc);
+        panel.add(apiKeyGosterKutusu, gbc);
         gbc.gridy = 3;
+        panel.add(llmAktifKutusu, gbc);
+        gbc.gridy = 4;
         panel.add(cacheAktifKutusu, gbc);
 
         int sonuc = JOptionPane.showConfirmDialog(this, panel, "LLM Ayarlari", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -299,11 +321,20 @@ public class ArayuzUygulamasi extends JFrame {
 
         ayarServisi.ayarlariKaydet(new AyarServisi.LlmAyarlari(
                 new String(apiKeyAlani.getPassword()).trim(),
-                modelAlani.getText().trim(),
+                String.valueOf(modelAlani.getSelectedItem()),
                 llmAktifKutusu.isSelected(),
                 cacheAktifKutusu.isSelected()
         ));
+        ayarServisi.apiKeyGorunumunuKaydet(apiKeyGosterKutusu.isSelected());
         baslikEtiketi.setText(llmDurumMetni());
+    }
+
+    private void apiKeyAlanlariniAyarla(boolean goster, JPasswordField... alanlar) {
+        char echo = goster ? (char) 0 : '\u2022';
+        for (JPasswordField alan : alanlar) {
+            alan.setEchoChar(echo);
+            alan.putClientProperty("JPasswordField.cutCopyAllowed", Boolean.valueOf(goster));
+        }
     }
 
     private void ayarSatiri(JPanel panel, GridBagConstraints gbc, int satir, String etiket, Component alan) {
@@ -396,10 +427,31 @@ public class ArayuzUygulamasi extends JFrame {
                 + " | Skor: " + seciliMac.getSkorMetni());
         analizButonu.setEnabled(true);
 
+        JPanel macSonuOranSatiri = seffafPanel(new GridLayout(1, 3, 10, 0));
+        int macSonuOranSayisi = 0;
         for (Oran oran : seciliMac.getOranlar()) {
-            oranPaneli.add(oranKarti(oran));
-            oranPaneli.add(Box.createVerticalStrut(8));
+            if (macSonuOraniMi(oran.getBahisTuru())) {
+                macSonuOranSatiri.add(oranKarti(oran));
+                macSonuOranSayisi++;
+            }
         }
+        if (macSonuOranSayisi == 0) {
+            macSonuOranSatiri.add(new JLabel("1/X/2 orani bulunamadi."));
+        }
+        while (macSonuOranSayisi > 0 && macSonuOranSayisi < 3) {
+            macSonuOranSatiri.add(new JLabel(""));
+            macSonuOranSayisi++;
+        }
+        oranPaneli.add(macSonuOranSatiri, BorderLayout.CENTER);
+
+        JButton detayButonu = stilliButon(new RenkliButon("Detay Oranlar", Color.WHITE, MAVI));
+        detayButonu.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                detayOranlariGoster();
+            }
+        });
+        oranPaneli.add(detayButonu, BorderLayout.SOUTH);
 
         oranPaneli.revalidate();
         oranPaneli.repaint();
@@ -411,16 +463,58 @@ public class ArayuzUygulamasi extends JFrame {
         }
 
         analizButonu.setEnabled(false);
-        sonucAlani.setText("Analiz çalışıyor...\nYorumlar, takım gücü, kadro riski ve oran dengesi inceleniyor.");
+        sonucAlani.setText("Analiz oncesi veri kontrolu yapiliyor...\nLLM henuz calistirilmadi.");
+        riskCemberi.setDeger(15, SARI);
+        final Mac kontrolEdilecekMac = seciliMac;
+
+        new SwingWorker<AnalizOnKontrol, Void>() {
+            @Override
+            protected AnalizOnKontrol doInBackground() {
+                List<MacYorumu> yorumlar = macYorumServisi.yorumlariGetir(kontrolEdilecekMac);
+                return new AnalizOnKontrol(kontrolEdilecekMac, yorumlar);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    AnalizOnKontrol kontrol = get();
+                    int secim = JOptionPane.showOptionDialog(
+                            ArayuzUygulamasi.this,
+                            analizOnKontrolPaneli(kontrol),
+                            "Analiz Verileri Onayi",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.PLAIN_MESSAGE,
+                            null,
+                            new Object[]{"Onayla", "Reddet"},
+                            "Onayla"
+                    );
+                    if (secim == JOptionPane.YES_OPTION) {
+                        analiziBaslat(kontrol);
+                    } else {
+                        sonucAlani.setText("Analiz baslatilmadi. LLM istegi yapilmadi.");
+                        riskCemberi.setDeger(0, new Color(185, 198, 194));
+                        analizButonu.setEnabled(true);
+                    }
+                } catch (Exception ex) {
+                    sonucAlani.setText("Veri kontrolu sirasinda hata olustu:\n" + ex.getMessage());
+                    riskCemberi.setDeger(0, KIRMIZI);
+                    analizButonu.setEnabled(true);
+                }
+            }
+        }.execute();
+    }
+
+    private void analiziBaslat(AnalizOnKontrol kontrol) {
+        sonucAlani.setText("Analiz calisiyor...\nYorumlar, takim gucu, kadro riski ve oran dengesi inceleniyor.");
         riskCemberi.setDeger(35, SARI);
         final List<Mac> tekMac = new ArrayList<Mac>();
-        tekMac.add(seciliMac);
+        tekMac.add(kontrol.mac);
 
         new SwingWorker<AnalizEkranSonucu, Void>() {
             @Override
             protected AnalizEkranSonucu doInBackground() {
                 int tahminiTokenSayisi = 0;
-                MacYorumAnalizAgent yorumAgent = new MacYorumAnalizAgent(tekMac);
+                MacYorumAnalizAgent yorumAgent = new MacYorumAnalizAgent(tekMac, kontrol.yorumlar);
                 tahminiTokenSayisi += yorumAgent.calistir().getTahminiTokenSayisi();
                 List<MacSonuAnalizi> yorumAnalizleri = yorumAgent.getAnalizler();
 
@@ -462,63 +556,334 @@ public class ArayuzUygulamasi extends JFrame {
         }.execute();
     }
 
-    private void analizSonucunuGoster(AnalizEkranSonucu sonuc) {
+    private JPanel analizOnKontrolPaneli(AnalizOnKontrol kontrol) {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setPreferredSize(new Dimension(780, 540));
+
+        JPanel ust = new JPanel(new BorderLayout(12, 4));
+        ust.setOpaque(true);
+        ust.setBackground(new Color(232, 245, 239));
+        ust.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(183, 215, 201), 1),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)
+        ));
+
+        JLabel baslik = new JLabel(kontrol.mac.getKarsilasmaAdi());
+        baslik.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        baslik.setForeground(new Color(18, 74, 54));
+        JLabel altBilgi = new JLabel(kontrol.mac.getLig() + " | " + kontrol.mac.getDurumMetni() + " | " + kontrol.mac.getSkorMetni());
+        altBilgi.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        altBilgi.setForeground(new Color(62, 83, 76));
+        ust.add(baslik, BorderLayout.NORTH);
+        ust.add(altBilgi, BorderLayout.SOUTH);
+
+        JTabbedPane sekmeler = new JTabbedPane();
+        sekmeler.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        sekmeler.addTab("Mac / Oran", metinSekmesi(onKontrolMacMetni(kontrol)));
+        sekmeler.addTab("iddaa Istatistik", iddaaIstatistikSekmesi(kontrol.yorumlar));
+        sekmeler.addTab("Yorumlar", metinSekmesi(iddaaYorumPopupMetni(kontrol.yorumlar)));
+        sekmeler.addTab("LLM", metinSekmesi(llmOnKontrolMetni()));
+
+        panel.add(ust, BorderLayout.NORTH);
+        panel.add(sekmeler, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private String analizOnKontrolMetni(AnalizOnKontrol kontrol) {
         StringBuilder metin = new StringBuilder();
+        metin.append("Mac: ").append(kontrol.mac.getKarsilasmaAdi()).append("\n");
+        metin.append("Lig: ").append(kontrol.mac.getLig()).append("\n\n");
+        metin.append("1) iddaa mac ve oran verisi\n");
+        metin.append("Durum: ").append(kontrol.mac.getDurumMetni()).append(" | Skor: ").append(kontrol.mac.getSkorMetni()).append("\n");
+        metin.append(oranFavorisiMetni(kontrol.mac)).append("\n\n");
+        if (!kontrol.mac.getMacOncesiTahmin().isEmpty()) {
+            metin.append("Mac oncesi oran tahmini: ").append(kontrol.mac.getMacOncesiTahmin()).append("\n");
+        }
+        metin.append("Detay oran sayisi: ").append(detayOranSayisi(kontrol.mac)).append("\n\n");
+        metin.append("2) iddaa istatistik verisi\n");
+        metin.append(iddaaIstatistikPopupMetni(kontrol.yorumlar)).append("\n\n");
+        metin.append("3) iddaa/Broadage yorum verisi\n");
+        metin.append(iddaaYorumSayisi(kontrol.yorumlar)).append(" yorum/haber metni bulundu.\n\n");
+        metin.append("4) LLM kullanimi\n");
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        if (!ayarlar.isLlmAktif()) {
+            metin.append("LLM kapali. Onaylasaniz da kural tabanli analiz calisir.\n");
+        } else if (!ayarlar.apiKeyVarMi()) {
+            metin.append("OpenAI API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
+        } else {
+            metin.append("OpenAI modeli: ").append(ayarlar.getModel()).append(". Onaylanirsa LLM istegi yapilir.\n");
+        }
+        return metin.toString();
+    }
+
+    private JScrollPane metinSekmesi(String icerik) {
+        JTextPane metin = new JTextPane();
+        metin.setEditable(false);
+        metin.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        metin.setForeground(new Color(31, 46, 42));
+        metin.setBackground(new Color(252, 254, 253));
+        metin.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        metin.setText(icerik == null ? "" : icerik);
+        metin.setCaretPosition(0);
+
+        JScrollPane scroll = new JScrollPane(metin);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(213, 228, 221), 1));
+        return scroll;
+    }
+
+    private JScrollPane iddaaIstatistikSekmesi(List<MacYorumu> yorumlar) {
+        JPanel govde = new JPanel();
+        govde.setLayout(new BoxLayout(govde, BoxLayout.Y_AXIS));
+        govde.setBackground(new Color(252, 254, 253));
+        govde.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        String metin = iddaaIstatistikPopupMetni(yorumlar);
+        if ("Veri bulunamadi.".equals(metin)) {
+            govde.add(istatistikKarti("Veri durumu", "iddaa.com istatistik verisi bulunamadi."));
+        } else {
+            istatistikKartlariniEkle(govde, metin);
+        }
+
+        JScrollPane scroll = new JScrollPane(govde);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(213, 228, 221), 1));
+        scroll.getVerticalScrollBar().setUnitIncrement(14);
+        return scroll;
+    }
+
+    private void istatistikKartlariniEkle(JPanel govde, String metin) {
+        List<String> genel = new ArrayList<String>();
+        String baslik = "Mac bilgisi";
+        List<String> satirlar = new ArrayList<String>();
+
+        String[] bolunmus = metin.split("\\r?\\n");
+        for (String hamSatir : bolunmus) {
+            String satir = hamSatir == null ? "" : hamSatir.trim();
+            if (satir.isEmpty()) {
+                continue;
+            }
+
+            if (satir.endsWith(":")) {
+                if (!satirlar.isEmpty() || !genel.isEmpty()) {
+                    govde.add(istatistikKarti(baslik, kartMetni(genel, satirlar)));
+                    govde.add(Box.createVerticalStrut(10));
+                    genel.clear();
+                    satirlar.clear();
+                }
+                baslik = satir.substring(0, satir.length() - 1);
+            } else if (satir.startsWith("- ")) {
+                satirlar.add(satir.substring(2));
+            } else {
+                genel.add(satir);
+            }
+        }
+
+        if (!satirlar.isEmpty() || !genel.isEmpty()) {
+            govde.add(istatistikKarti(baslik, kartMetni(genel, satirlar)));
+        }
+    }
+
+    private String kartMetni(List<String> genel, List<String> satirlar) {
+        StringBuilder sonuc = new StringBuilder();
+        for (String satir : genel) {
+            if (sonuc.length() > 0) {
+                sonuc.append("\n");
+            }
+            sonuc.append(satir);
+        }
+        for (String satir : satirlar) {
+            if (sonuc.length() > 0) {
+                sonuc.append("\n");
+            }
+            sonuc.append("- ").append(satir);
+        }
+        return sonuc.toString();
+    }
+
+    private JPanel istatistikKarti(String baslik, String icerik) {
+        JPanel kart = new JPanel(new BorderLayout(0, 8));
+        kart.setOpaque(true);
+        kart.setBackground(new Color(248, 252, 250));
+        kart.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(198, 224, 212), 1),
+                BorderFactory.createEmptyBorder(10, 12, 10, 12)
+        ));
+        kart.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+
+        JLabel baslikEtiketi = new JLabel(baslik);
+        baslikEtiketi.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        baslikEtiketi.setForeground(new Color(14, 97, 67));
+        kart.add(baslikEtiketi, BorderLayout.NORTH);
+
+        JPanel satirPaneli = new JPanel();
+        satirPaneli.setOpaque(false);
+        satirPaneli.setLayout(new BoxLayout(satirPaneli, BoxLayout.Y_AXIS));
+        String[] satirlar = (icerik == null ? "" : icerik).split("\\r?\\n");
+        for (String hamSatir : satirlar) {
+            String satir = hamSatir.trim();
+            if (satir.isEmpty()) {
+                continue;
+            }
+            satirPaneli.add(istatistikSatirBileseni(satir));
+            satirPaneli.add(Box.createVerticalStrut(4));
+        }
+        kart.add(satirPaneli, BorderLayout.CENTER);
+        return kart;
+    }
+
+    private Component istatistikSatirBileseni(String satir) {
+        boolean ozet = satir.startsWith("- Ozet:");
+        boolean macSatiri = satir.startsWith("- ") && satir.contains(" - ") && satir.matches(".*\\d+-\\d+.*");
+        if (macSatiri && !ozet) {
+            return istatistikMacSatiri(satir.substring(2));
+        }
+        return istatistikMetinSatiri(satir, ozet);
+    }
+
+    private JLabel istatistikMetinSatiri(String satir, boolean ozet) {
+        boolean veriDurumu = satir.toLowerCase(TURKCE).contains("veri") || satir.toLowerCase(TURKCE).contains("bulunamadi");
+        Color renk = ozet ? new Color(18, 74, 54) : (veriDurumu ? new Color(122, 82, 22) : new Color(37, 52, 47));
+        String yazi = satir.startsWith("- ") ? "• " + satir.substring(2) : satir;
+        String html = "<html><div style='width:680px;font-family:Segoe UI;font-size:12px;color:"
+                + renkHex(renk)
+                + ";'>"
+                + (ozet ? "<b>" : "")
+                + htmlKacis(yazi)
+                + (ozet ? "</b>" : "")
+                + "</div></html>";
+        JLabel label = new JLabel(html);
+        label.setOpaque(ozet);
+        if (ozet) {
+            label.setBackground(new Color(232, 245, 239));
+            label.setBorder(BorderFactory.createEmptyBorder(5, 7, 5, 7));
+        }
+        return label;
+    }
+
+    private JPanel istatistikMacSatiri(String satir) {
+        JPanel panel = new JPanel(new BorderLayout(10, 4));
+        panel.setOpaque(true);
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(222, 235, 229), 1),
+                BorderFactory.createEmptyBorder(7, 9, 7, 9)
+        ));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 74));
+
+        String[] parcalar = satir.split(" \\| ");
+        String macBilgisi = parcalar.length > 0 ? parcalar[0].trim() : satir;
+        String lig = parcalar.length > 1 ? parcalar[1].trim() : "";
+        int ilkBosluk = macBilgisi.indexOf(' ');
+        String tarih = ilkBosluk > 0 ? macBilgisi.substring(0, ilkBosluk).trim() : "";
+        String mac = ilkBosluk > 0 ? macBilgisi.substring(ilkBosluk + 1).trim() : macBilgisi;
+
+        JLabel tarihEtiketi = new JLabel(tarih.isEmpty() ? "Tarih yok" : tarih);
+        tarihEtiketi.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tarihEtiketi.setForeground(new Color(14, 97, 67));
+        tarihEtiketi.setPreferredSize(new Dimension(92, 22));
+
+        JLabel macEtiketi = new JLabel("<html><b>" + htmlKacis(mac) + "</b>"
+                + (lig.isEmpty() ? "" : "<br><span style='color:#66736e'>" + htmlKacis(lig) + "</span>")
+                + "</html>");
+        macEtiketi.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        macEtiketi.setForeground(new Color(31, 46, 42));
+
+        panel.add(tarihEtiketi, BorderLayout.WEST);
+        panel.add(macEtiketi, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private String renkHex(Color renk) {
+        return String.format("#%02x%02x%02x", renk.getRed(), renk.getGreen(), renk.getBlue());
+    }
+
+    private String htmlKacis(String metin) {
+        if (metin == null) {
+            return "";
+        }
+        return metin.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
+    private String onKontrolMacMetni(AnalizOnKontrol kontrol) {
+        StringBuilder metin = new StringBuilder();
+        metin.append("Mac\n");
+        metin.append("- Karsilasma: ").append(kontrol.mac.getKarsilasmaAdi()).append("\n");
+        metin.append("- Lig: ").append(kontrol.mac.getLig()).append("\n");
+        metin.append("- Saat: ").append(kontrol.mac.getSaat()).append("\n");
+        metin.append("- Durum: ").append(kontrol.mac.getDurumMetni()).append("\n");
+        metin.append("- Skor: ").append(kontrol.mac.getSkorMetni()).append("\n\n");
+        metin.append("Oran favorisi\n");
+        metin.append("- ").append(oranFavorisiMetni(kontrol.mac)).append("\n");
+        if (!kontrol.mac.getMacOncesiTahmin().isEmpty()) {
+            metin.append("- Mac oncesi oran tahmini: ").append(kontrol.mac.getMacOncesiTahmin()).append("\n");
+        }
+        metin.append("- Detay oran sayisi: ").append(detayOranSayisi(kontrol.mac)).append("\n");
+        return metin.toString();
+    }
+
+    private String iddaaYorumPopupMetni(List<MacYorumu> yorumlar) {
+        int sayi = iddaaYorumSayisi(yorumlar);
+        if (sayi == 0) {
+            return "Broadage/iddaa yorum verisi bulunamadi.";
+        }
+
+        StringBuilder metin = new StringBuilder();
+        metin.append(sayi).append(" yorum/haber metni bulundu.\n\n");
+        int sira = 1;
+        for (MacYorumu yorum : yorumlar) {
+            if ("iddaa.com istatistikleri".equalsIgnoreCase(yorum.getKaynak())) {
+                continue;
+            }
+            metin.append(sira++).append(". ").append(yorum.getKaynak()).append(" / ").append(yorum.getYazar()).append("\n");
+            metin.append(kisaltPopupMetni(yorum.getYorumMetni(), 900)).append("\n\n");
+        }
+        return metin.toString().trim();
+    }
+
+    private String llmOnKontrolMetni() {
+        AyarServisi.LlmAyarlari ayarlar = ayarServisi.ayarlariOku();
+        StringBuilder metin = new StringBuilder();
+        metin.append("Analiz onayi\n");
+        metin.append("- Onayla secilirse agent analizi baslar.\n");
+        metin.append("- Reddet secilirse LLM istegi yapilmaz.\n\n");
+        metin.append("LLM durumu\n");
+        if (!ayarlar.isLlmAktif()) {
+            metin.append("- LLM kapali. Onaylasaniz da kural tabanli analiz calisir.\n");
+        } else if (!ayarlar.apiKeyVarMi()) {
+            metin.append("- OpenAI API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
+        } else {
+            metin.append("- OpenAI modeli: ").append(ayarlar.getModel()).append("\n");
+            metin.append("- Onaylanirsa LLM istegi yapilir.\n");
+        }
+        return metin.toString();
+    }
+
+    private void analizSonucunuGoster(AnalizEkranSonucu sonuc) {
         BahisOnerisi oneri = sonuc.oneriler.isEmpty() ? null : sonuc.oneriler.get(0);
         OranRiskAnalizi riskAnalizi = sonuc.riskAnalizleri.isEmpty() ? null : sonuc.riskAnalizleri.get(0);
         MacSonuAnalizi macSonu = sonuc.yorumAnalizleri.isEmpty() ? null : sonuc.yorumAnalizleri.get(0);
-        TakimGucuAnalizi takim = sonuc.takimAnalizleri.isEmpty() ? null : sonuc.takimAnalizleri.get(0);
-        KadroDurumuAnalizi kadro = sonuc.kadroAnalizleri.isEmpty() ? null : sonuc.kadroAnalizleri.get(0);
 
         sonucAlani.setText("");
-        bolumEkle("ANALIZ MOTORU", llmKullanildiMi(oneri, macSonu) ? "LLM destekli" : "Kural tabanli");
+        riskCemberi.setDeger(0, new Color(185, 198, 194));
 
-        if (oneri != null) {
-            metin.append("ÖNERİ\n");
-            bolumEkle("ONERI", oneri.getSecim() + " | Oran: " + oneri.formatliOranDegeri());
-            metin.append("Risk/Güven: ").append(oneri.getRiskPuani()).append("/").append(oneri.getGuvenPuani()).append("\n");
-            bolumEkle("ONERI GEREKCESI", oneri.getGerekce());
-            riskCemberi.setDeger(oneri.getRiskPuani(), riskRengi(oneri.getRiskPuani()));
-        } else if (riskAnalizi != null) {
-            metin.append("Düşük/orta risk eşiğini geçen öneri yok.\n\n");
-            metin.append("En yakın seçenek: ").append(riskAnalizi.getSecim()).append(" | Oran: ").append(riskAnalizi.formatliOranDegeri()).append("\n");
-            metin.append("Risk/Güven: ").append(riskAnalizi.getRiskPuani()).append("/").append(riskAnalizi.getGuvenPuani()).append("\n\n");
-            riskCemberi.setDeger(riskAnalizi.getRiskPuani(), riskRengi(riskAnalizi.getRiskPuani()));
-        }
+        bolumEkle("ORAN FAVORISI", oranFavorisiMetni(macSonu));
+        bolumEkle("IDDAA ISTATISTIKLERI", iddaaIstatistikMetni(macSonu));
 
         if (macSonu != null) {
-            metin.append("Maç sonu tahmini: ").append(macSonu.getMacSonuTahmini()).append(" | Güven: ").append(macSonu.getGuvenPuani()).append("/100\n");
-            metin.append("Yorum analizi: ").append(macSonu.getGerekce()).append("\n");
+            bolumEkle("AGENT YORUMU", macSonu.getGerekce());
+        } else {
+            bolumEkle("AGENT YORUMU", "Mac yorumu uretilemedi.");
         }
 
-        if (takim != null) {
-            metin.append("Takım gücü: Ev ").append(takim.getEvSahibiGucPuani()).append(" / Dep ").append(takim.getDeplasmanGucPuani()).append(" | Öne çıkan: ").append(takim.getOneCikanTaraf()).append("\n");
-        }
-
-        if (kadro != null) {
-            metin.append("Kadro riski: Ev ").append(kadro.getEvSahibiRiskPuani()).append(" / Dep ").append(kadro.getDeplasmanRiskPuani()).append("\n");
-        }
-
-        sonucAlani.setText("");
-        bolumEkle("ANALIZ MOTORU", llmKullanildiMi(oneri, macSonu) ? "LLM destekli" : "Kural tabanli");
         if (oneri != null) {
-            bolumEkle("ONERI", oneri.getSecim() + " | Oran: " + oneri.formatliOranDegeri());
-            bolumEkle("RISK / GUVEN", oneri.getRiskPuani() + "/" + oneri.getGuvenPuani());
-            bolumEkle("ONERI GEREKCESI", oneri.getGerekce());
+            bolumEkle("ANALIZ SONUCU", oneri.getSecim() + " | Oran: " + oneri.formatliOranDegeri() + "\n" + oneri.getGerekce());
         } else if (riskAnalizi != null) {
-            bolumEkle("ONERI", "Dusuk/orta risk esigini gecen oneri yok.");
-            bolumEkle("EN YAKIN SECENEK", riskAnalizi.getSecim() + " | Oran: " + riskAnalizi.formatliOranDegeri());
-            bolumEkle("RISK / GUVEN", riskAnalizi.getRiskPuani() + "/" + riskAnalizi.getGuvenPuani());
-        }
-        if (macSonu != null) {
-            bolumEkle("MAC SONU TAHMINI", macSonu.getMacSonuTahmini() + " | Guven: " + macSonu.getGuvenPuani() + "/100");
-            bolumEkle("YORUM ANALIZI", macSonu.getGerekce());
-        }
-        if (takim != null) {
-            bolumEkle("TAKIM GUCU", "Ev " + takim.getEvSahibiGucPuani() + " / Dep " + takim.getDeplasmanGucPuani() + " | One cikan: " + takim.getOneCikanTaraf());
-        }
-        if (kadro != null) {
-            bolumEkle("KADRO RISKI", "Ev " + kadro.getEvSahibiRiskPuani() + " / Dep " + kadro.getDeplasmanRiskPuani());
+            bolumEkle("ANALIZ SONUCU", "Final bahis onerisi uretilemedi. En yakin secenek: " + riskAnalizi.getSecim() + " | Oran: " + riskAnalizi.formatliOranDegeri());
+        } else {
+            bolumEkle("ANALIZ SONUCU", "Analiz sonucu uretilemedi.");
         }
     }
 
@@ -529,6 +894,120 @@ public class ArayuzUygulamasi extends JFrame {
             belge.insertString(belge.getLength(), (aciklama == null ? "" : aciklama) + "\n\n", aciklamaStili());
         } catch (BadLocationException ignored) {
         }
+    }
+
+    private String oranFavorisiMetni(MacSonuAnalizi macSonu) {
+        Mac mac = macSonu != null ? macSonu.getMac() : seciliMac;
+        return oranFavorisiMetni(mac);
+    }
+
+    private String oranFavorisiMetni(Mac mac) {
+        if (mac == null) {
+            return "Mac secimi bulunamadi.";
+        }
+
+        Oran favori = null;
+        for (Oran oran : mac.getOranlar()) {
+            if (!macSonuOraniMi(oran.getBahisTuru())) {
+                continue;
+            }
+            if (favori == null || oran.getDeger().compareTo(favori.getDeger()) < 0) {
+                favori = oran;
+            }
+        }
+
+        if (favori == null) {
+            return "Mac sonucu 1/X/2 orani bulunamadi.";
+        }
+
+        return macSonuEtiketi(favori, mac) + " | " + favori.getGorunenAd() + " | Oran: " + favori.formatliDeger();
+    }
+
+    private int detayOranSayisi(Mac mac) {
+        if (mac == null) {
+            return 0;
+        }
+        int sayac = 0;
+        for (Oran oran : mac.getOranlar()) {
+            if (!macSonuOraniMi(oran.getBahisTuru())) {
+                sayac++;
+            }
+        }
+        return sayac;
+    }
+
+    private boolean macSonuOraniMi(BahisTuru bahisTuru) {
+        return bahisTuru == BahisTuru.MAC_SONUCU_1
+                || bahisTuru == BahisTuru.MAC_SONUCU_X
+                || bahisTuru == BahisTuru.MAC_SONUCU_2;
+    }
+
+    private String macSonuEtiketi(Oran oran, Mac mac) {
+        if (oran.getBahisTuru() == BahisTuru.MAC_SONUCU_1) {
+            return "Favori: " + mac.getEvSahibi();
+        }
+        if (oran.getBahisTuru() == BahisTuru.MAC_SONUCU_2) {
+            return "Favori: " + mac.getDeplasman();
+        }
+        return "Favori: Beraberlik";
+    }
+
+    private String iddaaIstatistikMetni(MacSonuAnalizi macSonu) {
+        if (macSonu == null) {
+            return "iddaa.com istatistik verisi bulunamadi.";
+        }
+        for (com.futbolanaliz.modeller.MacYorumu yorum : macSonu.getYorumlar()) {
+            if ("iddaa.com istatistikleri".equalsIgnoreCase(yorum.getKaynak())) {
+                return yorum.getYorumMetni();
+            }
+        }
+        return "iddaa.com istatistik verisi bulunamadi.";
+    }
+
+    private String iddaaIstatistikPopupMetni(List<MacYorumu> yorumlar) {
+        if (yorumlar == null || yorumlar.isEmpty()) {
+            return "Veri bulunamadi.";
+        }
+        for (MacYorumu yorum : yorumlar) {
+            if ("iddaa.com istatistikleri".equalsIgnoreCase(yorum.getKaynak())) {
+                return satirliVeriMetni(yorum.getYorumMetni());
+            }
+        }
+        return "Veri bulunamadi.";
+    }
+
+    private int iddaaYorumSayisi(List<MacYorumu> yorumlar) {
+        if (yorumlar == null || yorumlar.isEmpty()) {
+            return 0;
+        }
+        int sayac = 0;
+        for (MacYorumu yorum : yorumlar) {
+            if (!"iddaa.com istatistikleri".equalsIgnoreCase(yorum.getKaynak())) {
+                sayac++;
+            }
+        }
+        return sayac;
+    }
+
+    private String satirliVeriMetni(String kaynakMetin) {
+        String metin = kaynakMetin == null ? "" : kaynakMetin.trim();
+        if (metin.isEmpty()) {
+            return "Veri bulunamadi.";
+        }
+        metin = metin.replace(" | ", "\n- ");
+        metin = metin.replace("; ", "\n  - ");
+        return metin;
+    }
+
+    private String kisaltPopupMetni(String metin, int limit) {
+        if (metin == null) {
+            return "";
+        }
+        String temiz = metin.trim();
+        if (temiz.length() <= limit) {
+            return temiz;
+        }
+        return temiz.substring(0, Math.max(0, limit - 3)) + "...";
     }
 
     private SimpleAttributeSet baslikStili() {
@@ -558,6 +1037,33 @@ public class ArayuzUygulamasi extends JFrame {
         return metin != null && metin.toLowerCase(TURKCE).contains("llm destekli");
     }
 
+    private void detayOranlariGoster() {
+        if (seciliMac == null) {
+            return;
+        }
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        boolean detayVar = false;
+        for (Oran oran : seciliMac.getOranlar()) {
+            if (!macSonuOraniMi(oran.getBahisTuru())) {
+                panel.add(oranKarti(oran));
+                panel.add(Box.createVerticalStrut(8));
+                detayVar = true;
+            }
+        }
+
+        if (!detayVar) {
+            panel.add(new JLabel("1/X/2 disinda oran bulunamadi."));
+        }
+
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setPreferredSize(new Dimension(560, 420));
+        JOptionPane.showMessageDialog(this, scroll, "Detay Oranlar", JOptionPane.PLAIN_MESSAGE);
+    }
+
     private JPanel oranKarti(Oran oran) {
         JPanel kart = new JPanel(new BorderLayout(12, 0));
         kart.setOpaque(true);
@@ -566,8 +1072,8 @@ public class ArayuzUygulamasi extends JFrame {
                 BorderFactory.createLineBorder(new Color(203, 226, 216), 1),
                 BorderFactory.createEmptyBorder(7, 10, 7, 10)
         ));
-        kart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
-        kart.setPreferredSize(new Dimension(420, 46));
+        kart.setMaximumSize(new Dimension(Integer.MAX_VALUE, 54));
+        kart.setPreferredSize(new Dimension(130, 54));
 
         JLabel ad = new JLabel(oran.getGorunenAd());
         ad.setOpaque(true);
@@ -688,6 +1194,16 @@ public class ArayuzUygulamasi extends JFrame {
             this.riskAnalizleri = riskAnalizleri;
             this.oneriler = oneriler;
             this.tahminiTokenSayisi = tahminiTokenSayisi;
+        }
+    }
+
+    private static class AnalizOnKontrol {
+        private final Mac mac;
+        private final List<MacYorumu> yorumlar;
+
+        private AnalizOnKontrol(Mac mac, List<MacYorumu> yorumlar) {
+            this.mac = mac;
+            this.yorumlar = yorumlar == null ? new ArrayList<MacYorumu>() : new ArrayList<MacYorumu>(yorumlar);
         }
     }
 

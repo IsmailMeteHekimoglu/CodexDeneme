@@ -21,9 +21,15 @@ public class MacYorumServisi {
     private static final String MAC_YORUM_URL = "https://statisticsv2.iddaa.com/broadage/getMatchCommentary?sportType=1&broadageId=";
 
     private final JsonServisi jsonServisi = new JsonServisi();
+    private final IddaaIstatistikServisi iddaaIstatistikServisi = new IddaaIstatistikServisi();
 
     public List<MacYorumu> yorumlariGetir(Mac mac) {
         List<MacYorumu> yorumlar = new ArrayList<MacYorumu>();
+        String istatistikMetni = iddaaIstatistikServisi.istatistikMetniGetir(mac);
+        if (!istatistikMetni.isEmpty()) {
+            yorumlar.add(new MacYorumu("iddaa.com istatistikleri", "statisticsv2", istatistikMetni, null, BigDecimal.ZERO));
+        }
+
         long broadageId = istatistikBroadageIdBul(mac);
 
         if (broadageId <= 0L) {

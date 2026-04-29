@@ -112,6 +112,9 @@ public class LlmBahisOneriServisi {
             mesaj.append(i + 1).append(". ")
                     .append("macId=").append(analiz.getMac().getIddaaEventId())
                     .append(" | ").append(analiz.getMac().getKarsilasmaAdi())
+                    .append(" | lig=").append(analiz.getMac().getLig())
+                    .append(" | evSahibi=").append(analiz.getMac().getEvSahibi())
+                    .append(" | deplasman=").append(analiz.getMac().getDeplasman())
                     .append(" | bahisTuru=").append(analiz.getBahisTuru().name())
                     .append(" | secim=").append(analiz.getSecim())
                     .append(" | oran=").append(analiz.formatliOranDegeri())
@@ -153,7 +156,7 @@ public class LlmBahisOneriServisi {
     private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji, String model) {
         return "{"
                 + "\"model\":\"" + jsonEscape(model) + "\","
-                + "\"max_output_tokens\":350,"
+                + "\"max_output_tokens\":700,"
                 + "\"input\":["
                 + "{\"role\":\"system\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(sistemMesaji) + "\"}]},"
                 + "{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(kullaniciMesaji) + "\"}]}"

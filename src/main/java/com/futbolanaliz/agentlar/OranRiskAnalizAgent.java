@@ -62,17 +62,21 @@ public class OranRiskAnalizAgent implements Agent {
             risk -= 6;
         }
 
+        if (takimGucuAnalizi != null && tarafKarsitiMi(oran.getBahisTuru(), takimGucuAnalizi.getOneCikanTaraf())) {
+            risk += 7;
+        }
+
         if (oran.getBahisTuru() == BahisTuru.DIGER) {
             risk += digerMarketRiskEki(oran);
         }
 
         if (kadroDurumuAnalizi != null) {
-            risk += Math.max(kadroDurumuAnalizi.getEvSahibiRiskPuani(), kadroDurumuAnalizi.getDeplasmanRiskPuani()) / 10;
+            risk += kadroRiskEki(oran.getBahisTuru(), kadroDurumuAnalizi);
         }
 
         risk = Math.max(5, Math.min(95, risk));
         int guven = 100 - risk;
-        String gerekce = "Risk; oran seviyesi, market tipi, yorum tahmini, takim gucu ve kadro riski birlikte degerlendirilerek hesaplandi.";
+        String gerekce = "Risk; oran seviyesi, market tipi, yorum tahmini, guncel form sinyalleri, takim gucu, sakat/cezali oyuncu riski, ic saha/deplasman etkisi ve lig/kupa baglami birlikte degerlendirilerek hesaplandi.";
         return new OranRiskAnalizi(mac, oran.getBahisTuru(), oran.getGorunenAd(), oran.getDeger(), risk, guven, gerekce);
     }
 
@@ -114,6 +118,27 @@ public class OranRiskAnalizAgent implements Agent {
         return (bahisTuru == BahisTuru.MAC_SONUCU_1 && "1".equals(secim))
                 || (bahisTuru == BahisTuru.MAC_SONUCU_X && "X".equals(secim))
                 || (bahisTuru == BahisTuru.MAC_SONUCU_2 && "2".equals(secim));
+    }
+
+    private boolean tarafKarsitiMi(BahisTuru bahisTuru, String oneCikanTaraf) {
+        return (bahisTuru == BahisTuru.MAC_SONUCU_1 && "2".equals(oneCikanTaraf))
+                || (bahisTuru == BahisTuru.MAC_SONUCU_2 && "1".equals(oneCikanTaraf));
+    }
+
+    private int kadroRiskEki(BahisTuru bahisTuru, KadroDurumuAnalizi kadroDurumuAnalizi) {
+        int evRiski = kadroDurumuAnalizi.getEvSahibiRiskPuani();
+        int deplasmanRiski = kadroDurumuAnalizi.getDeplasmanRiskPuani();
+
+        if (bahisTuru == BahisTuru.MAC_SONUCU_1) {
+            return evRiski / 8;
+        }
+        if (bahisTuru == BahisTuru.MAC_SONUCU_2) {
+            return deplasmanRiski / 8;
+        }
+        if (bahisTuru == BahisTuru.MAC_SONUCU_X) {
+            return Math.abs(evRiski - deplasmanRiski) / 12;
+        }
+        return Math.max(evRiski, deplasmanRiski) / 10;
     }
 
     private MacSonuAnalizi yorumAnaliziBul(Mac mac) {

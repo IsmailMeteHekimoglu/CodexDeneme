@@ -80,16 +80,33 @@ public class LlmYorumAnalizServisi {
         mesaj.append("Mac: ").append(mac.getEvSahibi()).append(" - ").append(mac.getDeplasman()).append("\n");
         mesaj.append("Lig: ").append(mac.getLig()).append("\n");
         mesaj.append("Saat: ").append(mac.getSaat()).append("\n");
+        mesaj.append("Durum: ").append(mac.getDurumMetni()).append("\n");
+        mesaj.append("Skor: ").append(mac.getSkorMetni()).append("\n");
+        mesaj.append("Ev sahibi: ").append(mac.getEvSahibi()).append("\n");
+        mesaj.append("Deplasman: ").append(mac.getDeplasman()).append("\n");
+        if (!mac.getMacOncesiTahmin().isEmpty()) {
+            mesaj.append("Mac oncesi tahmin/not: ").append(mac.getMacOncesiTahmin()).append("\n");
+        }
+        mesaj.append("Zorunlu kontrol listesi: takimlarin guncel formu, sakat veya cezali oyuncu/rotasyon haberleri, ic saha-deplasman avantaji, lig/kupa siralamasi veya tur motivasyonu. ");
+        mesaj.append("Kaynakta bulunmayan bilgiyi uydurma; eksik kalan basliklari gerekcede veri eksigi olarak belirt.\n");
         mesaj.append("Oranlar:\n");
         for (Oran oran : mac.getOranlar()) {
             mesaj.append("- ").append(oran.getBahisTuru().getGorunenAd()).append(": ").append(oran.formatliDeger()).append("\n");
         }
 
-        mesaj.append("Yorumlar:\n");
+        mesaj.append("iddaa istatistikleri ve yorumlari:\n");
         int adet = Math.min(EN_FAZLA_YORUM, yorumlar.size());
         for (int i = 0; i < adet; i++) {
             MacYorumu yorum = yorumlar.get(i);
-            mesaj.append(i + 1).append(". ").append(kisalt(yorum.getYorumMetni(), YORUM_KARAKTER_LIMITI)).append("\n");
+            int limit = "iddaa.com istatistikleri".equalsIgnoreCase(yorum.getKaynak()) ? 2500 : YORUM_KARAKTER_LIMITI;
+            mesaj.append(i + 1)
+                    .append(". Kaynak: ")
+                    .append(yorum.getKaynak())
+                    .append(" / ")
+                    .append(yorum.getYazar())
+                    .append("\n")
+                    .append(kisalt(yorum.getYorumMetni(), limit))
+                    .append("\n");
         }
 
         return mesaj.toString();
@@ -125,7 +142,7 @@ public class LlmYorumAnalizServisi {
     private String istekGovdesiOlustur(String sistemMesaji, String kullaniciMesaji, String model) {
         return "{"
                 + "\"model\":\"" + jsonEscape(model) + "\","
-                + "\"max_output_tokens\":350,"
+                + "\"max_output_tokens\":900,"
                 + "\"input\":["
                 + "{\"role\":\"system\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(sistemMesaji) + "\"}]},"
                 + "{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"" + jsonEscape(kullaniciMesaji) + "\"}]}"

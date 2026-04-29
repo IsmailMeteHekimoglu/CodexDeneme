@@ -4,11 +4,23 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 public class AyarServisi {
     private static final String AYAR_DOSYASI = "config.properties";
-    private static final String VARSAYILAN_MODEL = "gpt-4.1-mini";
+    private static final List<String> OKUNACAK_AYAR_DOSYALARI = Arrays.asList("application.properties", ".env", AYAR_DOSYASI);
+    private static final String VARSAYILAN_MODEL = "gpt-5-mini";
+    private static final List<String> KULLANILABILIR_MODELLER = Arrays.asList(
+            "gpt-5.2",
+            "gpt-5.2-pro",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano"
+    );
 
     public LlmAyarlari ayarlariOku() {
         Properties properties = dosyadanOku();
@@ -17,6 +29,11 @@ public class AyarServisi {
         boolean llmAktif = booleanOku(properties.getProperty("llm.enabled"), !"0".equals(System.getenv("FUTBOL_ANALIZ_LLM")));
         boolean cacheAktif = booleanOku(properties.getProperty("llm.cache.enabled"), true);
         return new LlmAyarlari(apiKey, model, llmAktif, cacheAktif);
+    }
+
+    public boolean apiKeyleriGoster() {
+        Properties properties = dosyadanOku();
+        return booleanOku(properties.getProperty("apiKeys.visible"), false);
     }
 
     public void ayarlariKaydet(LlmAyarlari ayarlar) {
@@ -42,13 +59,46 @@ public class AyarServisi {
         }
     }
 
+    public void apiKeyGorunumunuKaydet(boolean goster) {
+        Properties properties = dosyadanOku();
+        properties.setProperty("apiKeys.visible", String.valueOf(goster));
+        ayarDosyasiniYaz(properties, "API key gorunum ayarlari kaydedilemedi.");
+    }
+
+    private void ayarDosyasiniYaz(Properties properties, String hataMesaji) {
+        FileOutputStream outputStream = null;
+        try {
+            outputStream = new FileOutputStream(AYAR_DOSYASI);
+            properties.store(outputStream, "Futbol Analiz Agent ayarlari");
+        } catch (IOException e) {
+            throw new IllegalStateException(hataMesaji, e);
+        } finally {
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    public List<String> kullanilabilirModeller() {
+        return KULLANILABILIR_MODELLER;
+    }
+
     private Properties dosyadanOku() {
         Properties properties = new Properties();
-        File dosya = new File(AYAR_DOSYASI);
-        if (!dosya.exists() || !dosya.isFile()) {
-            return properties;
+        for (String dosyaAdi : OKUNACAK_AYAR_DOSYALARI) {
+            dosyayiOku(properties, dosyaAdi);
         }
+        return properties;
+    }
 
+    private void dosyayiOku(Properties properties, String dosyaAdi) {
+        File dosya = new File(dosyaAdi);
+        if (!dosya.exists() || !dosya.isFile()) {
+            return;
+        }
         FileInputStream inputStream = null;
         try {
             inputStream = new FileInputStream(dosya);
@@ -62,7 +112,6 @@ public class AyarServisi {
                 }
             }
         }
-        return properties;
     }
 
     private String ilkDolu(String... degerler) {
@@ -92,9 +141,17 @@ public class AyarServisi {
 
         public LlmAyarlari(String apiKey, String model, boolean llmAktif, boolean cacheAktif) {
             this.apiKey = apiKey;
-            this.model = model == null || model.trim().isEmpty() ? VARSAYILAN_MODEL : model.trim();
+            this.model = modelSec(model);
             this.llmAktif = llmAktif;
             this.cacheAktif = cacheAktif;
+        }
+
+        private String modelSec(String model) {
+            if (model == null || model.trim().isEmpty()) {
+                return VARSAYILAN_MODEL;
+            }
+            String temizModel = model.trim();
+            return KULLANILABILIR_MODELLER.contains(temizModel) ? temizModel : VARSAYILAN_MODEL;
         }
 
         public String getApiKey() {

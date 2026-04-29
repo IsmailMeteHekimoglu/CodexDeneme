@@ -34,7 +34,7 @@ public class KadroDurumuAgent implements Agent {
             analizler.add(analizOlustur(mac));
         }
 
-        return AgentSonucu.basarili(ad(), analizler.size() + " maç için kadro durumu riski değerlendirildi.");
+        return AgentSonucu.basarili(ad(), analizler.size() + " mac icin kadro durumu riski degerlendirildi.");
     }
 
     public List<KadroDurumuAnalizi> getAnalizler() {
@@ -44,21 +44,29 @@ public class KadroDurumuAgent implements Agent {
     private KadroDurumuAnalizi analizOlustur(Mac mac) {
         int evRiski = 10;
         int deplasmanRiski = 10;
+        int evSinyalSayisi = 0;
+        int deplasmanSinyalSayisi = 0;
         MacSonuAnalizi yorumAnalizi = yorumAnaliziBul(mac);
 
         if (yorumAnalizi != null) {
             for (MacYorumu yorum : yorumAnalizi.getYorumlar()) {
                 String metin = normalize(yorum.getYorumMetni());
-                if (takimVeRiskVar(metin, mac.getEvSahibi())) {
-                    evRiski += 15;
+                int evEki = kadroRiskEki(metin, mac.getEvSahibi());
+                int deplasmanEki = kadroRiskEki(metin, mac.getDeplasman());
+                if (evEki > 0) {
+                    evSinyalSayisi++;
+                    evRiski += evEki;
                 }
-                if (takimVeRiskVar(metin, mac.getDeplasman())) {
-                    deplasmanRiski += 15;
+                if (deplasmanEki > 0) {
+                    deplasmanSinyalSayisi++;
+                    deplasmanRiski += deplasmanEki;
                 }
             }
         }
 
-        String ozet = "Resmi sakat/cezalı listesi henüz entegre değil; mevcut yorum metinlerinde kadro riski sinyali tarandı.";
+        String ozet = "Kadro taramasi; yorum/haber metinlerinde sakatlik, ceza, eksik, rotasyon ve supheli oyuncu sinyallerini aradi. "
+                + "Resmi sakat/cezali listesi entegre degil. Sinyal sayisi ev/deplasman: "
+                + evSinyalSayisi + "/" + deplasmanSinyalSayisi + ".";
         return new KadroDurumuAnalizi(mac, sinirla(evRiski), sinirla(deplasmanRiski), ozet);
     }
 
@@ -72,10 +80,29 @@ public class KadroDurumuAgent implements Agent {
         return null;
     }
 
-    private boolean takimVeRiskVar(String metin, String takimAdi) {
+    private int kadroRiskEki(String metin, String takimAdi) {
         String takim = normalize(takimAdi);
-        return metin.contains(takim)
-                && (metin.contains("sakat") || metin.contains("cezalı") || metin.contains("cezali") || metin.contains("eksik") || metin.contains("şüpheli"));
+        if (!metin.contains(takim)) {
+            return 0;
+        }
+
+        int risk = 0;
+        if (metin.contains("sakat") || metin.contains("injury") || metin.contains("injured")) {
+            risk += 14;
+        }
+        if (metin.contains("cezali") || metin.contains("kart cezal") || metin.contains("suspended")) {
+            risk += 14;
+        }
+        if (metin.contains("eksik") || metin.contains("yok") || metin.contains("oynamayacak") || metin.contains("missing")) {
+            risk += 10;
+        }
+        if (metin.contains("supheli") || metin.contains("belirsiz") || metin.contains("doubtful")) {
+            risk += 8;
+        }
+        if (metin.contains("rotasyon") || metin.contains("dinlend") || metin.contains("yedek") || metin.contains("rotation")) {
+            risk += 7;
+        }
+        return Math.min(25, risk);
     }
 
     private String normalize(String deger) {

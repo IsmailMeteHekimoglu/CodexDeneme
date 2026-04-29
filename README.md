@@ -70,10 +70,10 @@ Yorum analizi varsayilan olarak yerel kural tabanli akisi kullanir. OpenAI API a
 $env:OPENAI_API_KEY="sk-..."
 ```
 
-Varsayilan model `gpt-4.1-mini` olarak ayarlidir. Farkli model kullanmak icin:
+Varsayilan model `gpt-5-mini` olarak ayarlidir. Farkli model kullanmak icin:
 
 ```powershell
-$env:FUTBOL_ANALIZ_LLM_MODEL="gpt-4.1-mini"
+$env:FUTBOL_ANALIZ_LLM_MODEL="gpt-5-mini"
 ```
 
 LLM analizini gecici olarak kapatmak icin:
@@ -84,4 +84,6 @@ $env:FUTBOL_ANALIZ_LLM="0"
 
 API anahtari yoksa veya LLM istegi basarisiz olursa uygulama otomatik olarak eski kural tabanli yoruma geri doner.
 
-Masaustu arayuzundeki `Ayarlar` butonu ile API key, model, LLM acik/kapali ve cache acik/kapali tercihleri kaydedilebilir. Ayarlar `config.properties` dosyasinda tutulur; bu dosya git'e dahil edilmez. Cache sonuclari `kaynaklar/llm-cache/` altina yazilir ve ayni analiz tekrarlandiginda OpenAI istegi yapmadan kullanilir.
+Mac analizi iddaa.com mac/oran verileri, iddaa istatistik ekranindan gelen son maclar ve varsa Broadage yorumlariyla zenginlestirilir.
+
+Masaustu arayuzundeki `Ayarlar` butonu ile OpenAI API key, model, LLM acik/kapali ve cache acik/kapali tercihleri kaydedilebilir. Ayarlar `config.properties` dosyasinda tutulur; bu dosya git'e dahil edilmez. Cache sonuclari `kaynaklar/llm-cache/` altina yazilir ve ayni analiz tekrarlandiginda OpenAI istegi yapmadan kullanilir.
