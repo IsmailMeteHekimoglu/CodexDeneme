@@ -288,30 +288,39 @@ public class ArayuzUygulamasi extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
-        JPasswordField apiKeyAlani = new JPasswordField(ayarlar.getApiKey(), 28);
+        JComboBox<String> saglayiciAlani = new JComboBox<String>(ayarServisi.kullanilabilirSaglayicilar().toArray(new String[0]));
+        saglayiciAlani.setSelectedItem(ayarlar.getSaglayici());
+        JPasswordField openaiApiKeyAlani = new JPasswordField(ayarlar.getOpenaiApiKey(), 28);
+        JPasswordField geminiApiKeyAlani = new JPasswordField(ayarlar.getGeminiApiKey(), 28);
         JCheckBox apiKeyGosterKutusu = new JCheckBox("API keyleri gorunur ve kopyalanabilir yap", ayarServisi.apiKeyleriGoster());
-        apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), apiKeyAlani);
+        apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), openaiApiKeyAlani, geminiApiKeyAlani);
         apiKeyGosterKutusu.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), apiKeyAlani);
+                apiKeyAlanlariniAyarla(apiKeyGosterKutusu.isSelected(), openaiApiKeyAlani, geminiApiKeyAlani);
             }
         });
-        JComboBox<String> modelAlani = new JComboBox<String>(ayarServisi.kullanilabilirModeller().toArray(new String[0]));
-        modelAlani.setEditable(false);
-        modelAlani.setSelectedItem(ayarlar.getModel());
+        JComboBox<String> openaiModelAlani = new JComboBox<String>(ayarServisi.kullanilabilirModeller().toArray(new String[0]));
+        openaiModelAlani.setEditable(false);
+        openaiModelAlani.setSelectedItem(ayarlar.getOpenaiModel());
+        JComboBox<String> geminiModelAlani = new JComboBox<String>(ayarServisi.kullanilabilirGeminiModeller().toArray(new String[0]));
+        geminiModelAlani.setEditable(false);
+        geminiModelAlani.setSelectedItem(ayarlar.getGeminiModel());
         JCheckBox llmAktifKutusu = new JCheckBox("LLM analizini kullan", ayarlar.isLlmAktif());
         JCheckBox cacheAktifKutusu = new JCheckBox("Ayni analizleri cache ile tekrar kullan", ayarlar.isCacheAktif());
 
-        ayarSatiri(panel, gbc, 0, "OpenAI API Key", apiKeyAlani);
-        ayarSatiri(panel, gbc, 1, "Model", modelAlani);
+        ayarSatiri(panel, gbc, 0, "LLM Saglayici", saglayiciAlani);
+        ayarSatiri(panel, gbc, 1, "OpenAI API Key", openaiApiKeyAlani);
+        ayarSatiri(panel, gbc, 2, "OpenAI Model", openaiModelAlani);
+        ayarSatiri(panel, gbc, 3, "Gemini API Key", geminiApiKeyAlani);
+        ayarSatiri(panel, gbc, 4, "Gemini Model", geminiModelAlani);
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         panel.add(apiKeyGosterKutusu, gbc);
-        gbc.gridy = 3;
+        gbc.gridy = 6;
         panel.add(llmAktifKutusu, gbc);
-        gbc.gridy = 4;
+        gbc.gridy = 7;
         panel.add(cacheAktifKutusu, gbc);
 
         int sonuc = JOptionPane.showConfirmDialog(this, panel, "LLM Ayarlari", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -320,8 +329,11 @@ public class ArayuzUygulamasi extends JFrame {
         }
 
         ayarServisi.ayarlariKaydet(new AyarServisi.LlmAyarlari(
-                new String(apiKeyAlani.getPassword()).trim(),
-                String.valueOf(modelAlani.getSelectedItem()),
+                String.valueOf(saglayiciAlani.getSelectedItem()),
+                new String(openaiApiKeyAlani.getPassword()).trim(),
+                String.valueOf(openaiModelAlani.getSelectedItem()),
+                new String(geminiApiKeyAlani.getPassword()).trim(),
+                String.valueOf(geminiModelAlani.getSelectedItem()),
                 llmAktifKutusu.isSelected(),
                 cacheAktifKutusu.isSelected()
         ));
@@ -356,7 +368,7 @@ public class ArayuzUygulamasi extends JFrame {
         if (!ayarlar.apiKeyVarMi()) {
             return "LLM icin API key bekleniyor; kural tabanli analiz kullaniliyor.";
         }
-        return "LLM aktif: " + ayarlar.getModel() + (ayarlar.isCacheAktif() ? " | cache acik" : " | cache kapali");
+        return "LLM aktif: " + ayarlar.getSaglayici() + " / " + ayarlar.getModel() + (ayarlar.isCacheAktif() ? " | cache acik" : " | cache kapali");
     }
 
     private void maclariYukle() {
@@ -530,7 +542,7 @@ public class ArayuzUygulamasi extends JFrame {
                 tahminiTokenSayisi += riskAgent.calistir().getTahminiTokenSayisi();
                 List<OranRiskAnalizi> riskAnalizleri = riskAgent.getAnalizler();
 
-                BahisOneriAgent oneriAgent = new BahisOneriAgent(riskAnalizleri);
+                BahisOneriAgent oneriAgent = new BahisOneriAgent(riskAnalizleri, yorumAnalizleri, takimAnalizleri, kadroAnalizleri);
                 tahminiTokenSayisi += oneriAgent.calistir().getTahminiTokenSayisi();
                 tahminiTokenSayisi += tokenTahminServisi.tahminEt(tekMac)
                         + tokenTahminServisi.tahminEt(yorumAnalizleri)
@@ -538,7 +550,7 @@ public class ArayuzUygulamasi extends JFrame {
                         + tokenTahminServisi.tahminEt(kadroAnalizleri)
                         + tokenTahminServisi.tahminEt(riskAnalizleri)
                         + tokenTahminServisi.tahminEt(oneriAgent.getOneriler());
-                return new AnalizEkranSonucu(yorumAnalizleri, takimAnalizleri, kadroAnalizleri, riskAnalizleri, oneriAgent.getOneriler(), tahminiTokenSayisi);
+                return new AnalizEkranSonucu(yorumAnalizleri, takimAnalizleri, kadroAnalizleri, riskAnalizleri, oneriAgent.getOneriler(), oneriAgent.getProfesyonelAnaliz(), tahminiTokenSayisi);
             }
 
             @Override
@@ -610,9 +622,9 @@ public class ArayuzUygulamasi extends JFrame {
         if (!ayarlar.isLlmAktif()) {
             metin.append("LLM kapali. Onaylasaniz da kural tabanli analiz calisir.\n");
         } else if (!ayarlar.apiKeyVarMi()) {
-            metin.append("OpenAI API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
+            metin.append(ayarlar.getSaglayici()).append(" API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
         } else {
-            metin.append("OpenAI modeli: ").append(ayarlar.getModel()).append(". Onaylanirsa LLM istegi yapilir.\n");
+            metin.append("LLM saglayici/model: ").append(ayarlar.getSaglayici()).append(" / ").append(ayarlar.getModel()).append(". Onaylanirsa LLM istegi yapilir.\n");
         }
         return metin.toString();
     }
@@ -853,16 +865,16 @@ public class ArayuzUygulamasi extends JFrame {
         if (!ayarlar.isLlmAktif()) {
             metin.append("- LLM kapali. Onaylasaniz da kural tabanli analiz calisir.\n");
         } else if (!ayarlar.apiKeyVarMi()) {
-            metin.append("- OpenAI API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
+            metin.append("- ").append(ayarlar.getSaglayici()).append(" API key yok. Onaylasaniz da LLM istegi yapilamaz.\n");
         } else {
-            metin.append("- OpenAI modeli: ").append(ayarlar.getModel()).append("\n");
+            metin.append("- LLM saglayici: ").append(ayarlar.getSaglayici()).append("\n");
+            metin.append("- Model: ").append(ayarlar.getModel()).append("\n");
             metin.append("- Onaylanirsa LLM istegi yapilir.\n");
         }
         return metin.toString();
     }
 
     private void analizSonucunuGoster(AnalizEkranSonucu sonuc) {
-        BahisOnerisi oneri = sonuc.oneriler.isEmpty() ? null : sonuc.oneriler.get(0);
         OranRiskAnalizi riskAnalizi = sonuc.riskAnalizleri.isEmpty() ? null : sonuc.riskAnalizleri.get(0);
         MacSonuAnalizi macSonu = sonuc.yorumAnalizleri.isEmpty() ? null : sonuc.yorumAnalizleri.get(0);
 
@@ -872,19 +884,58 @@ public class ArayuzUygulamasi extends JFrame {
         bolumEkle("ORAN FAVORISI", oranFavorisiMetni(macSonu));
         bolumEkle("IDDAA ISTATISTIKLERI", iddaaIstatistikMetni(macSonu));
 
-        if (macSonu != null) {
+        if (sonuc.profesyonelAnaliz != null && !sonuc.profesyonelAnaliz.trim().isEmpty()) {
+            bolumEkle("AGENT YORUMU", sonuc.profesyonelAnaliz);
+        } else if (macSonu != null) {
             bolumEkle("AGENT YORUMU", macSonu.getGerekce());
         } else {
             bolumEkle("AGENT YORUMU", "Mac yorumu uretilemedi.");
         }
 
-        if (oneri != null) {
-            bolumEkle("ANALIZ SONUCU", oneri.getSecim() + " | Oran: " + oneri.formatliOranDegeri() + "\n" + oneri.getGerekce());
+        if (!sonuc.oneriler.isEmpty()) {
+            bolumEkle("ANALIZ SONUCU", onerilerMetni(sonuc.oneriler));
         } else if (riskAnalizi != null) {
             bolumEkle("ANALIZ SONUCU", "Final bahis onerisi uretilemedi. En yakin secenek: " + riskAnalizi.getSecim() + " | Oran: " + riskAnalizi.formatliOranDegeri());
         } else {
             bolumEkle("ANALIZ SONUCU", "Analiz sonucu uretilemedi.");
         }
+    }
+
+    private String onerilerMetni(List<BahisOnerisi> oneriler) {
+        StringBuilder metin = new StringBuilder();
+        int adet = Math.min(3, oneriler.size());
+        for (int i = 0; i < adet; i++) {
+            BahisOnerisi oneri = oneriler.get(i);
+            if (i > 0) {
+                metin.append("\n\n");
+            }
+            metin.append(i + 1).append(". ").append(riskSeviyesiEtiketi(oneri)).append(" TAHMIN\n");
+            metin.append("Secim: ").append(oneri.getSecim()).append("\n");
+            metin.append("Oran: ").append(oneri.formatliOranDegeri()).append("\n");
+            metin.append("Risk / Guven: ").append(oneri.getRiskPuani()).append(" / ").append(oneri.getGuvenPuani()).append("\n");
+            metin.append("Gerekce: ").append(oneri.getGerekce());
+        }
+        return metin.toString();
+    }
+
+    private String riskSeviyesiEtiketi(BahisOnerisi oneri) {
+        String riskSeviyesi = oneri.getRiskSeviyesi() == null ? "" : oneri.getRiskSeviyesi().toUpperCase(TURKCE);
+        if (riskSeviyesi.contains("COK")) {
+            return "COK RISKLI";
+        }
+        if (riskSeviyesi.contains("ORTA")) {
+            return "ORTA RISKLI";
+        }
+        if (riskSeviyesi.contains("DUSUK")) {
+            return "DUSUK RISKLI";
+        }
+        if (oneri.getRiskPuani() <= 35) {
+            return "DUSUK RISKLI";
+        }
+        if (oneri.getRiskPuani() <= 60) {
+            return "ORTA RISKLI";
+        }
+        return "COK RISKLI";
     }
 
     private void bolumEkle(String baslik, String aciklama) {
@@ -1185,14 +1236,16 @@ public class ArayuzUygulamasi extends JFrame {
         private final List<KadroDurumuAnalizi> kadroAnalizleri;
         private final List<OranRiskAnalizi> riskAnalizleri;
         private final List<BahisOnerisi> oneriler;
+        private final String profesyonelAnaliz;
         private final int tahminiTokenSayisi;
 
-        private AnalizEkranSonucu(List<MacSonuAnalizi> yorumAnalizleri, List<TakimGucuAnalizi> takimAnalizleri, List<KadroDurumuAnalizi> kadroAnalizleri, List<OranRiskAnalizi> riskAnalizleri, List<BahisOnerisi> oneriler, int tahminiTokenSayisi) {
+        private AnalizEkranSonucu(List<MacSonuAnalizi> yorumAnalizleri, List<TakimGucuAnalizi> takimAnalizleri, List<KadroDurumuAnalizi> kadroAnalizleri, List<OranRiskAnalizi> riskAnalizleri, List<BahisOnerisi> oneriler, String profesyonelAnaliz, int tahminiTokenSayisi) {
             this.yorumAnalizleri = yorumAnalizleri;
             this.takimAnalizleri = takimAnalizleri;
             this.kadroAnalizleri = kadroAnalizleri;
             this.riskAnalizleri = riskAnalizleri;
             this.oneriler = oneriler;
+            this.profesyonelAnaliz = profesyonelAnaliz == null ? "" : profesyonelAnaliz;
             this.tahminiTokenSayisi = tahminiTokenSayisi;
         }
     }

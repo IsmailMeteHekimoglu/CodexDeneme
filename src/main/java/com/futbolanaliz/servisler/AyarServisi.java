@@ -11,7 +11,9 @@ import java.util.Properties;
 public class AyarServisi {
     private static final String AYAR_DOSYASI = "config.properties";
     private static final List<String> OKUNACAK_AYAR_DOSYALARI = Arrays.asList("application.properties", ".env", AYAR_DOSYASI);
+    private static final String VARSAYILAN_SAGLAYICI = "openai";
     private static final String VARSAYILAN_MODEL = "gpt-5-mini";
+    private static final String VARSAYILAN_GEMINI_MODEL = "gemini-1.5-flash";
     private static final List<String> KULLANILABILIR_MODELLER = Arrays.asList(
             "gpt-5.2",
             "gpt-5.2-pro",
@@ -21,14 +23,24 @@ public class AyarServisi {
             "gpt-4.1-mini",
             "gpt-4.1-nano"
     );
+    private static final List<String> KULLANILABILIR_GEMINI_MODELLER = Arrays.asList(
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b"
+    );
+    private static final List<String> KULLANILABILIR_SAGLAYICILAR = Arrays.asList("openai", "gemini");
 
     public LlmAyarlari ayarlariOku() {
         Properties properties = dosyadanOku();
-        String apiKey = ilkDolu(properties.getProperty("openai.apiKey"), System.getenv("OPENAI_API_KEY"));
-        String model = ilkDolu(properties.getProperty("openai.model"), System.getenv("FUTBOL_ANALIZ_LLM_MODEL"), VARSAYILAN_MODEL);
+        String saglayici = ilkDolu(properties.getProperty("llm.provider"), System.getenv("FUTBOL_ANALIZ_LLM_PROVIDER"), VARSAYILAN_SAGLAYICI);
+        String openaiApiKey = ilkDolu(properties.getProperty("openai.apiKey"), System.getenv("OPENAI_API_KEY"));
+        String geminiApiKey = ilkDolu(properties.getProperty("gemini.apiKey"), System.getenv("GEMINI_API_KEY"), System.getenv("GOOGLE_API_KEY"));
+        String openaiModel = ilkDolu(properties.getProperty("openai.model"), System.getenv("FUTBOL_ANALIZ_LLM_MODEL"), VARSAYILAN_MODEL);
+        String geminiModel = ilkDolu(properties.getProperty("gemini.model"), System.getenv("FUTBOL_ANALIZ_GEMINI_MODEL"), VARSAYILAN_GEMINI_MODEL);
         boolean llmAktif = booleanOku(properties.getProperty("llm.enabled"), !"0".equals(System.getenv("FUTBOL_ANALIZ_LLM")));
         boolean cacheAktif = booleanOku(properties.getProperty("llm.cache.enabled"), true);
-        return new LlmAyarlari(apiKey, model, llmAktif, cacheAktif);
+        return new LlmAyarlari(saglayici, openaiApiKey, openaiModel, geminiApiKey, geminiModel, llmAktif, cacheAktif);
     }
 
     public boolean apiKeyleriGoster() {
@@ -38,8 +50,11 @@ public class AyarServisi {
 
     public void ayarlariKaydet(LlmAyarlari ayarlar) {
         Properties properties = dosyadanOku();
-        properties.setProperty("openai.apiKey", ayarlar.getApiKey() == null ? "" : ayarlar.getApiKey());
-        properties.setProperty("openai.model", ayarlar.getModel() == null ? VARSAYILAN_MODEL : ayarlar.getModel());
+        properties.setProperty("llm.provider", ayarlar.getSaglayici());
+        properties.setProperty("openai.apiKey", ayarlar.getOpenaiApiKey() == null ? "" : ayarlar.getOpenaiApiKey());
+        properties.setProperty("openai.model", ayarlar.getOpenaiModel() == null ? VARSAYILAN_MODEL : ayarlar.getOpenaiModel());
+        properties.setProperty("gemini.apiKey", ayarlar.getGeminiApiKey() == null ? "" : ayarlar.getGeminiApiKey());
+        properties.setProperty("gemini.model", ayarlar.getGeminiModel() == null ? VARSAYILAN_GEMINI_MODEL : ayarlar.getGeminiModel());
         properties.setProperty("llm.enabled", String.valueOf(ayarlar.isLlmAktif()));
         properties.setProperty("llm.cache.enabled", String.valueOf(ayarlar.isCacheAktif()));
 
@@ -84,6 +99,14 @@ public class AyarServisi {
 
     public List<String> kullanilabilirModeller() {
         return KULLANILABILIR_MODELLER;
+    }
+
+    public List<String> kullanilabilirGeminiModeller() {
+        return KULLANILABILIR_GEMINI_MODELLER;
+    }
+
+    public List<String> kullanilabilirSaglayicilar() {
+        return KULLANILABILIR_SAGLAYICILAR;
     }
 
     private Properties dosyadanOku() {
@@ -134,19 +157,37 @@ public class AyarServisi {
     }
 
     public static class LlmAyarlari {
-        private final String apiKey;
-        private final String model;
+        private final String saglayici;
+        private final String openaiApiKey;
+        private final String openaiModel;
+        private final String geminiApiKey;
+        private final String geminiModel;
         private final boolean llmAktif;
         private final boolean cacheAktif;
 
         public LlmAyarlari(String apiKey, String model, boolean llmAktif, boolean cacheAktif) {
-            this.apiKey = apiKey;
-            this.model = modelSec(model);
+            this(VARSAYILAN_SAGLAYICI, apiKey, model, "", VARSAYILAN_GEMINI_MODEL, llmAktif, cacheAktif);
+        }
+
+        public LlmAyarlari(String saglayici, String openaiApiKey, String openaiModel, String geminiApiKey, String geminiModel, boolean llmAktif, boolean cacheAktif) {
+            this.saglayici = saglayiciSec(saglayici);
+            this.openaiApiKey = openaiApiKey;
+            this.openaiModel = openaiModelSec(openaiModel);
+            this.geminiApiKey = geminiApiKey;
+            this.geminiModel = geminiModelSec(geminiModel);
             this.llmAktif = llmAktif;
             this.cacheAktif = cacheAktif;
         }
 
-        private String modelSec(String model) {
+        private String saglayiciSec(String saglayici) {
+            if (saglayici == null || saglayici.trim().isEmpty()) {
+                return VARSAYILAN_SAGLAYICI;
+            }
+            String temiz = saglayici.trim().toLowerCase();
+            return KULLANILABILIR_SAGLAYICILAR.contains(temiz) ? temiz : VARSAYILAN_SAGLAYICI;
+        }
+
+        private String openaiModelSec(String model) {
             if (model == null || model.trim().isEmpty()) {
                 return VARSAYILAN_MODEL;
             }
@@ -154,12 +195,40 @@ public class AyarServisi {
             return KULLANILABILIR_MODELLER.contains(temizModel) ? temizModel : VARSAYILAN_MODEL;
         }
 
+        private String geminiModelSec(String model) {
+            if (model == null || model.trim().isEmpty()) {
+                return VARSAYILAN_GEMINI_MODEL;
+            }
+            String temizModel = model.trim();
+            return KULLANILABILIR_GEMINI_MODELLER.contains(temizModel) ? temizModel : VARSAYILAN_GEMINI_MODEL;
+        }
+
+        public String getSaglayici() {
+            return saglayici;
+        }
+
         public String getApiKey() {
-            return apiKey;
+            return geminiMi() ? geminiApiKey : openaiApiKey;
         }
 
         public String getModel() {
-            return model;
+            return geminiMi() ? geminiModel : openaiModel;
+        }
+
+        public String getOpenaiApiKey() {
+            return openaiApiKey;
+        }
+
+        public String getOpenaiModel() {
+            return openaiModel;
+        }
+
+        public String getGeminiApiKey() {
+            return geminiApiKey;
+        }
+
+        public String getGeminiModel() {
+            return geminiModel;
         }
 
         public boolean isLlmAktif() {
@@ -171,7 +240,15 @@ public class AyarServisi {
         }
 
         public boolean apiKeyVarMi() {
-            return apiKey != null && !apiKey.trim().isEmpty();
+            return getApiKey() != null && !getApiKey().trim().isEmpty();
+        }
+
+        public boolean openaiMi() {
+            return "openai".equals(saglayici);
+        }
+
+        public boolean geminiMi() {
+            return "gemini".equals(saglayici);
         }
     }
 }

@@ -10,9 +10,6 @@ Planlanan agent akışı oluşturuldu: ana yönetici, öncelikli organizasyon ko
 - `src/main/java/com/futbolanaliz/agentlar`: Agent sınıfları ve ortak agent sözleşmeleri.
 - `src/main/java/com/futbolanaliz/modeller`: Agentlar arasında taşınacak veri modelleri.
 - `src/main/java/com/futbolanaliz/servisler`: Dış kaynaklara ve yardımcı iş akışlarına erişen servisler.
-- `src/main/java/com/futbolanaliz/analiz`: Risk, oran ve performans analiz mantıkları.
-- `src/main/java/com/futbolanaliz/veri`: Veri okuma, yazma ve saklama bileşenleri.
-- `src/main/java/com/futbolanaliz/yardimcilar`: Ortak yardımcı sınıflar.
 - `agentlar-md`: Her agent için rol, girdi, çıktı ve karar talimatları.
 - `skills`: Tekrar kullanılabilir analiz iş akışları.
 - `sozlesmeler`: Agentlar arası JSON veri sözleşmeleri.
@@ -87,3 +84,22 @@ API anahtari yoksa veya LLM istegi basarisiz olursa uygulama otomatik olarak esk
 Mac analizi iddaa.com mac/oran verileri, iddaa istatistik ekranindan gelen son maclar ve varsa Broadage yorumlariyla zenginlestirilir.
 
 Masaustu arayuzundeki `Ayarlar` butonu ile OpenAI API key, model, LLM acik/kapali ve cache acik/kapali tercihleri kaydedilebilir. Ayarlar `config.properties` dosyasinda tutulur; bu dosya git'e dahil edilmez. Cache sonuclari `kaynaklar/llm-cache/` altina yazilir ve ayni analiz tekrarlandiginda OpenAI istegi yapmadan kullanilir.
+
+## Bakim ve Versiyon Kontrol Agent
+
+`BakimVersiyonKontrolAgent`, Codex ile yapilan her kod degisikliginden sonra calistirilmak uzere tasarlandi. Agent API kullanmaz; yerel git durumu, paket yapisi ve dosya sistemi uzerinden calisir.
+
+Calistirma:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\codex-bakim.ps1
+```
+
+Agent su islemleri yapar:
+
+- Java kaynak agacinda kalan gereksiz `.class` dosyalarini temizler.
+- `src/main/java/com/futbolanaliz` altindaki bos paket klasorlerini siler.
+- `pom.xml` versiyonunu ve git branch/HEAD bilgisini okur.
+- Commitlenmemis degisiklikleri `tmp/codex-degisiklik-ozeti.md` dosyasina yazar.
+- Commit sonrasi git calisma agaci temizse ozet dosyasini temizler.
+- Kullanici istemedikce commit atmaz, branch degistirmez veya destructive git komutu calistirmaz.

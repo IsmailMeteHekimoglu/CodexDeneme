@@ -1,12 +1,10 @@
 package com.futbolanaliz.agentlar;
 
 import com.futbolanaliz.modeller.BahisTuru;
-import com.futbolanaliz.modeller.LlmYorumAnalizSonucu;
 import com.futbolanaliz.modeller.Mac;
 import com.futbolanaliz.modeller.MacSonuAnalizi;
 import com.futbolanaliz.modeller.MacYorumu;
 import com.futbolanaliz.modeller.Oran;
-import com.futbolanaliz.servisler.LlmYorumAnalizServisi;
 import com.futbolanaliz.servisler.MacYorumServisi;
 import com.futbolanaliz.servisler.TokenTahminServisi;
 
@@ -19,12 +17,10 @@ public class MacYorumAnalizAgent implements Agent {
     private static final Locale TURKCE = new Locale("tr", "TR");
 
     private final MacYorumServisi macYorumServisi = new MacYorumServisi();
-    private final LlmYorumAnalizServisi llmYorumAnalizServisi = new LlmYorumAnalizServisi();
     private final TokenTahminServisi tokenTahminServisi = new TokenTahminServisi();
     private final List<Mac> maclar;
     private final List<MacYorumu> onHazirYorumlar;
     private final List<MacSonuAnalizi> analizler = new ArrayList<MacSonuAnalizi>();
-    private int sonLlmTokenSayisi;
 
     public MacYorumAnalizAgent(List<Mac> maclar) {
         this.maclar = maclar == null ? new ArrayList<Mac>() : new ArrayList<Mac>(maclar);
@@ -44,7 +40,6 @@ public class MacYorumAnalizAgent implements Agent {
     @Override
     public AgentSonucu calistir() {
         analizler.clear();
-        sonLlmTokenSayisi = 0;
 
         for (Mac mac : maclar) {
             List<MacYorumu> yorumlar = yorumlariSec(mac);
@@ -55,7 +50,7 @@ public class MacYorumAnalizAgent implements Agent {
         return AgentSonucu.basarili(
                 ad(),
                 mesaj,
-                tokenTahminServisi.agentTahmini(ad(), mesaj, maclar, analizler) + sonLlmTokenSayisi
+                tokenTahminServisi.agentTahmini(ad(), mesaj, maclar, analizler)
         );
     }
 
@@ -71,11 +66,6 @@ public class MacYorumAnalizAgent implements Agent {
     }
 
     private MacSonuAnalizi analizOlustur(Mac mac, List<MacYorumu> yorumlar) {
-        MacSonuAnalizi llmAnalizi = llmAnalizOlustur(mac, yorumlar);
-        if (llmAnalizi != null) {
-            return llmAnalizi;
-        }
-
         Oran favoriOran = favoriMacSonuOrani(mac);
         String tahmin = tahminAdi(favoriOran);
         int guvenPuani = oranGuvenPuani(favoriOran);
@@ -112,26 +102,6 @@ public class MacYorumAnalizAgent implements Agent {
 
         guvenPuani = Math.max(25, Math.min(85, guvenPuani));
         return new MacSonuAnalizi(mac, tahmin, guvenPuani, gerekceOlustur(favoriOran, yorumlar, evSinyali, deplasmanSinyali, beraberlikSinyali, baglamSinyali), yorumlar);
-    }
-
-    private MacSonuAnalizi llmAnalizOlustur(Mac mac, List<MacYorumu> yorumlar) {
-        try {
-            LlmYorumAnalizSonucu sonuc = llmYorumAnalizServisi.macYorumlariniAnalizEt(mac, yorumlar);
-            if (sonuc == null) {
-                return null;
-            }
-
-            sonLlmTokenSayisi += sonuc.getToplamTokenSayisi();
-            String gerekce = sonuc.getGerekce()
-                    + " LLM token kullanimi: ~"
-                    + sonuc.getGirisTokenSayisi()
-                    + " giris / ~"
-                    + sonuc.getCikisTokenSayisi()
-                    + " cikis.";
-            return new MacSonuAnalizi(mac, sonuc.getMacSonuTahmini(), sonuc.getGuvenPuani(), gerekce, yorumlar);
-        } catch (RuntimeException e) {
-            return null;
-        }
     }
 
     private Oran favoriMacSonuOrani(Mac mac) {
