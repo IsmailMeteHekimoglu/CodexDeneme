@@ -41,7 +41,9 @@ public class BakimVersiyonKontrolAgent implements Agent {
         islemler.clear();
         try {
             temizlenebilirDosyalariSil();
+            bosDosyalariSil(projeKoku);
             bosPaketKlasorleriniSil(new File(projeKoku, KAYNAK_KOKU));
+            bosGenelKlasorleriSil(projeKoku);
 
             GitDurumu gitDurumu = gitDurumunuOku();
             String ozet = ozetOlustur(gitDurumu);
@@ -71,6 +73,59 @@ public class BakimVersiyonKontrolAgent implements Agent {
                 islemler.add("Kaynak agacindaki gereksiz class dosyasi silindi: " + goreliYol(dosya));
             }
         }
+    }
+
+    private void bosDosyalariSil(File kok) {
+        if (kok == null || !kok.exists() || korunacakYolMu(kok)) {
+            return;
+        }
+        File[] dosyalar = kok.listFiles();
+        if (dosyalar == null) {
+            return;
+        }
+        for (File dosya : dosyalar) {
+            if (korunacakYolMu(dosya)) {
+                continue;
+            }
+            if (dosya.isDirectory()) {
+                bosDosyalariSil(dosya);
+            } else if (dosya.length() == 0 && dosya.delete()) {
+                islemler.add("Bos dosya silindi: " + goreliYol(dosya));
+            }
+        }
+    }
+
+    private boolean bosGenelKlasorleriSil(File klasor) {
+        if (klasor == null || !klasor.exists() || !klasor.isDirectory() || korunacakYolMu(klasor)) {
+            return false;
+        }
+
+        File[] icerik = klasor.listFiles();
+        if (icerik == null) {
+            return true;
+        }
+
+        for (File dosya : icerik) {
+            if (dosya.isDirectory()) {
+                bosGenelKlasorleriSil(dosya);
+            }
+        }
+
+        File[] kalan = klasor.listFiles();
+        boolean bos = kalan == null || kalan.length == 0;
+        if (bos && !projeKoku.getAbsoluteFile().equals(klasor.getAbsoluteFile()) && klasor.delete()) {
+            islemler.add("Bos klasor silindi: " + goreliYol(klasor));
+            return true;
+        }
+        return bos;
+    }
+
+    private boolean korunacakYolMu(File dosya) {
+        String yol = dosya.getAbsolutePath().replace("\\", "/");
+        return yol.contains("/.git")
+                || yol.contains("/target")
+                || yol.endsWith("/config.properties")
+                || yol.contains("/kaynaklar/llm-cache");
     }
 
     private void classDosyalariniTopla(File kok, List<File> sonuc) {
